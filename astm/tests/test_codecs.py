@@ -67,6 +67,11 @@ class EncodeTestCase(unittest.TestCase):
         seq, data, cs = astm.decode_message(msg)
         self.assertEqual(msg, astm.encode_message(seq, data))
 
+    def test_encode_component_strip_tail(self):
+        msg = ['A', 'B', '', '', '']
+        res = 'A^B'
+        self.assertEqual(res, astm.encode_component(msg))
+
     def test_encode_record(self):
         msg = 'A|B^C\D^E|F^G|H'
         self.assertEqual(msg, astm.encode_record(astm.decode_record(msg)))

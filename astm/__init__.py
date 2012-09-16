@@ -161,14 +161,28 @@ def encode_record(record):
     for field in record:
         if field is None:
             _append('')
-        elif isinstance(field, list):
-            if all([isinstance(_, str) for _ in field] or [False]):
-                _append(COMPONENT_SEP.join(field))
-            else:
-                _append(REPEAT_SEP.join([COMPONENT_SEP.join(_) for _ in field]))
+        elif isinstance(field, (list, tuple)):
+            _append(encode_component(field))
         else:
             _append(field)
     return FIELD_SEP.join(fields)
+
+def encode_component(component):
+    """Encodes ASTM record field components."""
+    items = []
+    _append = items.append
+    for item in component:
+        if isinstance(item, (list, tuple)):
+            return encode_repeated_component(component)
+        elif item is None:
+            _append('')
+        else:
+            _append(item)
+    return COMPONENT_SEP.join(items).rstrip(COMPONENT_SEP)
+
+def encode_repeated_component(components):
+    """Encodes repeated components."""
+    return REPEAT_SEP.join(encode_component(item) for item in components)
 
 def make_checksum(message):
     """Calculates checksum for specified message.
