@@ -8,6 +8,7 @@
 #
 
 import os
+import sys
 import unittest
 
 def suite():
@@ -22,7 +23,9 @@ def suite():
             tests = unittest.defaultTestLoader.loadTestsFromName(modname)
             for test in tests:
                 suite.addTests(test)
-            print modname, ':', tests.countTestCases(), 'tests'
+            sys.stdout.write('%s : %s tests%s'
+                             % (modname, tests.countTestCases(), os.linesep))
+            sys.stdout.flush()
     return suite
 
 

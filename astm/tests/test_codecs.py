@@ -9,6 +9,7 @@
 
 import unittest
 import astm
+from astm.compat import u
 
 class DecodeTestCase(unittest.TestCase):
 
@@ -64,20 +65,20 @@ class EncodeTestCase(unittest.TestCase):
     def test_encode_message(self):
         msg = '\x021A|B|C|D\r\x03BF\r\n'
         seq, data, cs = astm.decode_message(msg)
-        self.assertEquals(msg, astm.encode_message(seq, data))
+        self.assertEqual(msg, astm.encode_message(seq, data))
 
     def test_encode_record(self):
         msg = 'A|B^C\D^E|F^G|H'
-        self.assertEquals(msg, astm.encode_record(astm.decode_record(msg)))
+        self.assertEqual(msg, astm.encode_record(astm.decode_record(msg)))
 
     def test_count_encode_fields_as_empty_strings(self):
-        self.assertEquals('|B|', astm.encode_record([None,'B', None]))
+        self.assertEqual('|B|', astm.encode_record([None,'B', None]))
 
 
 class ChecksummTestCase(unittest.TestCase):
 
     def test_common(self):
-        msg = u'2P|1|2776833|||王^大^明||||||||||||||||||||\x0D\x03'
+        msg = u('2P|1|2776833|||王^大^明||||||||||||||||||||\x0D\x03')
         self.assertEqual('CF', astm.make_checksum(msg))
 
     def test_short(self):

@@ -162,7 +162,7 @@ def encode_record(record):
         if field is None:
             _append('')
         elif isinstance(field, list):
-            if all([isinstance(_, basestring) for _ in field] or [False]):
+            if all([isinstance(_, str) for _ in field] or [False]):
                 _append(COMPONENT_SEP.join(field))
             else:
                 _append(REPEAT_SEP.join([COMPONENT_SEP.join(_) for _ in field]))
