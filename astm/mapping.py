@@ -16,18 +16,24 @@ except ImportError: # Python 3
     from itertools import zip_longest as izip_longest
     izip = zip
 
-#: Processing ID values set.
-#:   - ``P``: Production
-#:   - ``D``: Debugging
-#:   - ``Q``: Quality Control
+#: Processing ID values.
+#:   - ``P``: Production.
+#:   - ``D``: Debugging.
+#:   - ``Q``: Quality Control.
 #:   - ``T``
 PROCESSING_IDS = frozenset(['P', 'D', 'Q', 'T'])
 
-#: Patient sex list.
+#: Patient sex.
 #:   - ``M``: Male
 #:   - ``F``: Female
 #:   - ``U``: Unknown
 SEX = frozenset(['M', 'F', 'U'])
+
+#: Termination codes.
+#:   - ``N``: Normal termination.
+#:   - ``I``: Information not available on last request.
+#:   - ``F``: Finished processing last request.
+TERMINATION_CODES = frozenset(['N', 'I', 'F'])
 
 def maybe_unpack_to_list(value, length):
     if isinstance(value, (str, type(None))):
@@ -131,6 +137,12 @@ _PatientMedications = namedtuple('_PatientMedications', [
     'level',
     'start_date',
     'enc_date'
+])
+
+_Terminator = namedtuple('_Terminator', [
+    'type',
+    'seq',
+    'code'
 ])
 
 
@@ -292,3 +304,25 @@ class Patient(_Patient, ASTMRecord):
             raise ValueError('Patient sex should be one of: %s' % SEX)
 
         return super(Patient, cls).__new__(**kwargs)
+
+
+class Terminator(_Terminator, ASTMRecord):
+    """ASTM terminator record.
+
+    :param type: Record Type ID. Always ``L``.
+    :param seq: Sequential number. Always ``1``.
+    :param code: Termination code.
+    """
+
+    def __new__(cls, type='L', seq='1', code='N'):
+        if type != 'L':
+            raise ValueError('Record ID type should be `L`, got %r' % type)
+
+        if seq != '1':
+            raise ValueError('Field `seq` should be `1`, got %r' % seq)
+
+        if code not in TERMINATION_CODES:
+            raise ValueError('Termication `code` should be one of %s'
+                             '' % TERMINATION_CODES)
+
+        return super(Terminator, cls).__new__(cls, type, seq, code)
