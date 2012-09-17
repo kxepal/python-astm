@@ -10,7 +10,11 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
 
+   codecs
+   mapping
+   licence
 
 
 Indices and tables
