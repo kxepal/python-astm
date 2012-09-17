@@ -23,6 +23,12 @@ except ImportError: # Python 3
 #:   - ``T``
 PROCESSING_IDS = frozenset(['P', 'D', 'Q', 'T'])
 
+#: Patient sex list.
+#:   - ``M``: Male
+#:   - ``F``: Female
+#:   - ``U``: Unknown
+SEX = frozenset(['M', 'F', 'U'])
+
 def maybe_unpack_to_list(value, length):
     if isinstance(value, (str, type(None))):
         value = [value]
@@ -78,6 +84,55 @@ _ReceiverID = namedtuple('_ReceiverID', [
     'ipaddr'
 ])
 
+_Patient = namedtuple('_Patient', [
+    'type',
+    'seq',
+    'pa_pid',
+    'la_pid',
+    'pid',
+    'name',
+    'maiden_name',
+    'birthdate',
+    'sex',
+    'race',
+    'address',
+    'reserved',
+    'phone',
+    'physician_id',
+    'special_1',
+    'special_2',
+    'height',
+    'weight',
+    'diagnosis',
+    'medications',
+    'diet',
+    'practice_1',
+    'practice_2',
+    'admission_date',
+    'admission_status',
+    'location'
+])
+
+_PatientName = namedtuple('_PatientName', [
+    'last',
+    'first',
+    'middle',
+    'suffix',
+    'title'
+])
+
+_PatientDiagnosis = namedtuple('_PatientDiagnosis', [
+    'code',
+    'description'
+])
+
+_PatientMedications = namedtuple('_PatientMedications', [
+    'name',
+    'level',
+    'start_date',
+    'enc_date'
+])
+
 
 class SenderID(_SenderID, ASTMComponent):
     """Sender Name or ID field of ASTM :class:`Header` record.
@@ -106,12 +161,12 @@ class Header(_Header, ASTMRecord):
     :param delimeter: Delimiter Definition.
     :param mid: Message Control ID.
     :param password: Access Password.
-    :param sender: Sender Name or ID. See :class:`SenderID` for more info.
+    :param sender: :class:`Sender Name or ID <SenderID>`.
     :param address: Sender Street Address.
     :param reserved: Reserved Field.
     :param phone: Sender Telephone Number.
     :param chars: Sender Characteristics.
-    :param receiver: Receiver ID. See :class:`ReceiverID` for more info.
+    :param receiver: :class:`Receiver ID <ReceiverID>`.
     :param comments: Comments.
     :param procid: Processing ID.
     :param version: ASTM Version Number.
@@ -141,3 +196,99 @@ class Header(_Header, ASTMRecord):
             kwargs['timestamp'] = datetime.now().strftime('%Y%m%d%H%M%S')
 
         return super(Header, cls).__new__(**kwargs)
+
+
+class PatientName(_PatientName, ASTMComponent):
+    """Patient name field of ASTM :class:`Patient` record.
+
+    :param last: Last name.
+    :param first: First name.
+    :param middle: Middle name.
+    :param suffix: Suffix (Jr.,Sr., etc.).
+    :param title: Title (Mr., Mrs., Ms., etc.).
+    """
+    __slots__ = ()
+
+
+class PatientDiagnosis(_PatientDiagnosis, ASTMComponent):
+    """Patient diagnosis field of ASTM :class:`Patient` record.
+
+    :param code: Code.
+    :param description: Text description for the code.
+    """
+    __slots__ = ()
+
+
+class PatientMedications(_PatientMedications, ASTMComponent):
+    """Patient active medications of ASTM :class:`Patient` record.
+
+    :param name: Identifies the therapy name or generic drug name.
+    :param level: Identifies the amount or dosage of drug or therapy as well as
+                  the frequency
+    :param start_date: Refers to the beginning date of the therapy or
+                       medication.
+    :param end_date: Refers to the stop date of the therapy or medication.
+    """
+    __slots__ = ()
+
+
+class Patient(_Patient, ASTMRecord):
+    """ASTM patient record.
+
+    :param type: Record Type ID.
+    :param seq: Sequence Number.
+    :param pa_pid: Practice Assigned Patient ID.
+    :param la_pid: Laboratory Assigned Patient ID.
+    :param pid: Patient ID.
+    :param name: :class:`Patient Name <PatientName>`.
+    :param birthdate: Birthdate.
+    :param sex: Patient Sex.
+    :param maiden_name: Mother’s Maiden Name.
+    :param race: Patient Race-Ethnic Origin.
+    :param address: Patient Address.
+    :param reserved: Reserved Field.
+    :param phone: Patient Telephone Number.
+    :param apid: Attending Physician.
+    :param special_1: Special Field #1.
+    :param special_2: Special Field #2.
+    :param height: Patient Height.
+    :param weight: Patient Weight.
+    :param diagnosis: Patient’s Known Diagnosis.
+    :param medications: Patient’s Active Medications.
+    :param diet: Patient’s Diet.
+    :param practice_1: Practice Field No. 1.
+    :param practice_2: Practice Field No. 2.
+    :param admission_date: Admission/Discharge Dates.
+    :param admission_status: Admission Status.
+    :param location: Location.
+    """
+    __slots__ = ()
+
+    def __new__(cls, *args, **kwargs):
+        kwargs = cls._make_kwargs(_Patient.__new__, args, kwargs)
+
+        kwargs['_cls'] = cls
+        if kwargs['type'] != 'P':
+            raise ValueError('Record `type` should be `P`, got %r',
+                             kwargs['type'])
+
+        if not kwargs['seq'].isdigit():
+            raise ValueError('Record `seq` should be digital, got %r',
+                             kwargs['seq'])
+
+        if kwargs['birthdate']:
+            datetime.strptime(kwargs['birthdate'], '%Y%m%d')
+
+        kwargs['name'] = PatientName(
+            *maybe_unpack_to_list(kwargs['name'], 5))
+        kwargs['diagnosis'] = PatientDiagnosis(
+            *maybe_unpack_to_list(kwargs['diagnosis'], 2))
+        kwargs['medications'] = PatientMedications(
+            *maybe_unpack_to_list(kwargs['medications'], 4))
+
+        if not kwargs['sex']:
+            kwargs['sex'] = 'U'
+        if kwargs['sex'] not in SEX:
+            raise ValueError('Patient sex should be one of: %s' % SEX)
+
+        return super(Patient, cls).__new__(**kwargs)
