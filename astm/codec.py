@@ -7,6 +7,8 @@
 # you should have received as part of this distribution.
 #
 
+from collections import Iterable
+
 STX = '\x02'
 ETX = '\x03'
 EOT = '\x04'
@@ -159,12 +161,14 @@ def encode_record(record):
     fields = []
     _append = fields.append
     for field in record:
-        if field is None:
-            _append('')
-        elif isinstance(field, (list, tuple)):
-            _append(encode_component(field))
-        else:
+        if isinstance(field, basestring):
             _append(field)
+        elif isinstance(field, Iterable):
+            _append(encode_component(field))
+        elif field is None:
+            _append('')
+        else:
+            _append(unicode(field))
     return FIELD_SEP.join(fields)
 
 def encode_component(component):
@@ -172,12 +176,15 @@ def encode_component(component):
     items = []
     _append = items.append
     for item in component:
-        if isinstance(item, (list, tuple)):
+        if isinstance(item, basestring):
+            _append(item)
+        elif isinstance(item, Iterable):
             return encode_repeated_component(component)
         elif item is None:
             _append('')
         else:
-            _append(item)
+            _append(unicode(item))
+
     return COMPONENT_SEP.join(items).rstrip(COMPONENT_SEP)
 
 def encode_repeated_component(components):
