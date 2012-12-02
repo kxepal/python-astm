@@ -64,22 +64,25 @@ class MetaMapping(type):
 
     def __new__(mcs, name, bases, d):
         fields = []
+        names = []
+        def merge_fields(items):
+            for name, field in items:
+                if field.name is None:
+                    field.name = name
+                if name not in names:
+                    fields.append((name, field))
+                    names.append(name)
+                else:
+                    fields[names.index(name)] = (name, field)
         for base in bases:
             if hasattr(base, '_fields'):
-                fields.extend(base._fields)
-        seen = set([])
-        for attrname, attrval in d.items():
-            if isinstance(attrval, Field):
-                if not attrval.name:
-                    attrval.name = attrname
-                if attrname in seen:
-                    raise ValueError('duplicate field name: %r' % attrname)
-                seen.add(attrname)
-                fields.append((attrname, attrval))
+                merge_fields(base._fields)
+        merge_fields([(k, v) for k, v in d.items() if isinstance(v, Field)])
         if '_fields' not in d:
             d['_fields'] = fields
         else:
-            d['_fields'].extend(fields)
+            merge_fields(d['_fields'])
+            d['_fields'] = fields
         return super(MetaMapping, mcs).__new__(mcs, name, bases, d)
 
 
