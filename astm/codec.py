@@ -8,6 +8,7 @@
 #
 
 from collections import Iterable
+from .compat import basestring
 
 STX = '\x02'
 ETX = '\x03'
