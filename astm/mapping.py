@@ -106,15 +106,15 @@ class Mapping(_MappingProxy):
 
     @classmethod
     def build(cls, *a):
-        d = {}
         fields = []
+        newcls = type('Generic' + cls.__name__, (cls,), {})
         for field in a:
             if field.name is None:
                 raise ValueError('Name is required for ordered fields.')
-            setattr(cls, field.name, field)
+            setattr(newcls, field.name, field)
             fields.append((field.name, field))
-        d['_fields'] = fields
-        return type('Generic' + cls.__name__, (cls,), d)
+        newcls._fields = fields
+        return newcls
 
     def __getitem__(self, key):
         return self.values()[key]
