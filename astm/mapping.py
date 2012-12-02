@@ -93,7 +93,7 @@ class Mapping(_MappingProxy):
         values.update(kwargs)
         self._data = {}
         for attrname, field in self._fields:
-            attrval = values.pop(attrname)
+            attrval = values.pop(attrname, None)
             if attrval is None:
                 setattr(self, attrname, getattr(self, attrname))
             else:
@@ -275,8 +275,10 @@ class SetField(Field):
 class ComponentField(Field):
     """Mapping field for storing record component."""
     def __init__(self, mapping, name=None, default=None):
-        super(ComponentField, self).__init__(name, default)
         self.mapping = mapping
+        default = default or mapping()
+        super(ComponentField, self).__init__(name, default)
+
 
     def _get_value(self, value):
         if isinstance(value, dict):
@@ -305,7 +307,7 @@ class RepeatedComponentField(Field):
         else:
             assert isinstance(field, type) and issubclass(field, Mapping)
             self.field = ComponentField(field)
-        self.default = default or []
+        default = default or []
         super(RepeatedComponentField, self).__init__(name, default)
 
     class Proxy(list):
