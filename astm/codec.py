@@ -20,11 +20,11 @@ CR  = '\x0D'
 NAK = '\x15'
 CRLF = CR + LF
 
-RECORD_SEP    = '\x0D' # \r
-FIELD_SEP     = '\x7C' # |
-REPEAT_SEP    = '\x5C' # \
-COMPONENT_SEP = '\x5E' # ^
-ESCAPE_SEP    = '\x26' # &
+RECORD_SEP    = '\x0D' # \r #
+FIELD_SEP     = '\x7C' # |  #
+REPEAT_SEP    = '\x5C' # \  #
+COMPONENT_SEP = '\x5E' # ^  #
+ESCAPE_SEP    = '\x26' # &  #
 
 def decode(data):
     """Common ASTM decoding function that tries to guess which kind of data it
