@@ -12,3 +12,10 @@ from .codec import (
     encode, encode_message, encode_record,
     make_checksum
 )
+from .mapping import (
+    Record, Component
+)
+from .records import (
+    HeaderRecord, PatientRecord, OrderRecord,
+    ResultRecord, CommentRecord, TerminatorRecord
+)
