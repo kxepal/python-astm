@@ -9,6 +9,7 @@
 
 import datetime
 import decimal
+import warnings
 from operator import itemgetter
 from itertools import islice
 try:
@@ -451,3 +452,17 @@ class RepeatedComponentField(Field):
 
     def _set_value(self, value):
         return [self.field._set_value(item) for item in value]
+
+
+class NotUsedField(Field):
+
+    def __init__(self, name=None):
+        super(NotUsedField, self).__init__(name)
+
+    def _get_value(self, value):
+        return None
+
+    def _set_value(self, value):
+        warnings.warn('Field %r is not used, any assignments are omitted'
+                      '' % self.name, UserWarning)
+        return None

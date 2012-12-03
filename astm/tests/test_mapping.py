@@ -10,6 +10,7 @@
 import datetime
 import decimal
 import unittest
+import warnings
 from astm import mapping
 from astm.compat import u
 
@@ -34,6 +35,26 @@ class FieldTestCase(unittest.TestCase):
         class Dummy(mapping.Mapping):
             field = mapping.Field(default=lambda: 'foobar')
         self.assertEqual(Dummy().field, 'foobar')
+
+
+class NotUsedFieldTestCase(unittest.TestCase):
+
+    def setUp(self):
+        class Dummy(mapping.Mapping):
+            field = mapping.NotUsedField()
+        self.Dummy = Dummy
+
+    def test_get_value(self):
+        obj = self.Dummy()
+        self.assertEqual(obj.field, None)
+        self.assertEqual(obj[0], None)
+
+    def test_set_value(self):
+        obj = self.Dummy()
+        with warnings.catch_warnings(record=True) as w:
+            obj.field = 42
+            assert issubclass(w[-1].category, UserWarning)
+        self.assertEqual(obj.field, None)
 
 
 class IntegerTestCase(unittest.TestCase):
