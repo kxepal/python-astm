@@ -347,10 +347,9 @@ class ComponentField(Field):
             return self.mapping(**value)
         elif isinstance(value, self.mapping):
             return value
-        elif isinstance(value, basestring):
-            raise TypeError('String values are not allowed to be components.')
-        else:
-            return self.mapping(*value)
+        if isinstance(value, basestring):
+            value = [value]
+        return self.mapping(*value)
 
 
 class RepeatedComponentField(Field):

@@ -386,7 +386,6 @@ class ComponentFieldTestCase(unittest.TestCase):
     def test_set_value(self):
         obj = self.Dummy()
         self.assertRaises(TypeError, setattr, obj, 'field', 42)
-        self.assertRaises(TypeError, setattr, obj, 'field', 'foo')
         self.assertRaises(ValueError, setattr, obj, 'field', [1, 2, 3])
         obj.field = ['test', 24, '42']
         self.assertEqual(obj.field, ['test', 24, '42'])
@@ -399,6 +398,13 @@ class ComponentFieldTestCase(unittest.TestCase):
         obj = self.Dummy()
         obj.field = ['foo', 14, '42']
         self.assertEqual(obj._data['field'], ['foo', 14, '42'])
+
+    def test_set_string_value(self):
+        obj = self.Dummy()
+        obj.field = 'foo'
+        self.assertEqual(obj.field[0], 'foo')
+        self.assertEqual(obj.field[1], None)
+        self.assertEqual(obj.field[2], '42')
 
 
 class RepeatedComponentFieldTestCase(unittest.TestCase):
