@@ -245,22 +245,23 @@ class DatetimeFieldTestCase(unittest.TestCase):
 
 class ConstantFieldTestCase(unittest.TestCase):
 
-    def setUp(self):
-        class Dummy(mapping.Mapping):
-            field = mapping.ConstantField()
-        self.Dummy = Dummy
-
     def test_get_value(self):
-        obj = self.Dummy(field=42)
+        class Dummy(mapping.Mapping):
+            field = mapping.ConstantField(default=42)
+        obj = Dummy()
         self.assertEqual(obj.field, 42)
 
     def test_set_value_if_none_default(self):
-        obj = self.Dummy()
+        class Dummy(mapping.Mapping):
+            field = mapping.ConstantField(default='foo')
+        obj = Dummy()
         obj.field = 'foo'
         self.assertEqual(obj.field, 'foo')
 
     def test_fail_override_setted_value(self):
-        obj = self.Dummy()
+        class Dummy(mapping.Mapping):
+            field = mapping.ConstantField(default='foo')
+        obj = Dummy()
         obj.field = 'foo'
         self.assertEqual(obj.field, 'foo')
         self.assertRaises(ValueError, setattr, obj, 'field', 'bar')
@@ -274,12 +275,16 @@ class ConstantFieldTestCase(unittest.TestCase):
         self.assertEqual(obj.field, 'foo')
 
     def test_raw_value(self):
-        obj = self.Dummy()
+        class Dummy(mapping.Mapping):
+            field = mapping.ConstantField(default='foo')
+        obj = Dummy()
         obj.field = 'foo'
         self.assertEqual(obj._data['field'], 'foo')
 
     def test_raw_value_should_be_string(self):
-        obj = self.Dummy()
+        class Dummy(mapping.Mapping):
+            field = mapping.ConstantField(default=42)
+        obj = Dummy()
         obj.field = 42
         self.assertEqual(obj._data['field'], '42')
 
@@ -288,6 +293,9 @@ class ConstantFieldTestCase(unittest.TestCase):
         assert field.required
         field = mapping.ConstantField(default='test', required=False)
         assert field.required
+
+    def test_default_value_should_be_defined(self):
+        self.assertRaises(ValueError, mapping.ConstantField)
 
 
 class SetFieldTestCase(unittest.TestCase):

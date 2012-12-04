@@ -218,18 +218,15 @@ class ConstantField(Field):
     def __init__(self, *args, **kwargs):
         super(ConstantField, self).__init__(*args, **kwargs)
         self.required = True
-        self.value = self.default
-        if self.default is not None:
-            assert isinstance(self.default, basestring)
+        if self.default is None:
+            raise ValueError('Constant value should be defined')
 
     def _get_value(self, value):
-        return self.value
+        return self.default
 
     def _set_value(self, value):
-        if self.value is not None and self.value != value:
+        if self.default != value:
             raise ValueError('Field changing not allowed')
-        elif self.value is None:
-            self.value = value
         return super(ConstantField, self)._set_value(value)
 
 
