@@ -217,6 +217,7 @@ class ConstantField(Field):
     """
     def __init__(self, *args, **kwargs):
         super(ConstantField, self).__init__(*args, **kwargs)
+        self.required = True
         self.value = self.default
         if self.default is not None:
             assert isinstance(self.default, basestring)

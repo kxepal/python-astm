@@ -283,6 +283,12 @@ class ConstantFieldTestCase(unittest.TestCase):
         obj.field = 42
         self.assertEqual(obj._data['field'], '42')
 
+    def test_always_required(self):
+        field = mapping.ConstantField(default='test')
+        assert field.required
+        field = mapping.ConstantField(default='test', required=False)
+        assert field.required
+
 
 class SetFieldTestCase(unittest.TestCase):
 
