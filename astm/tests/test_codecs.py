@@ -59,6 +59,15 @@ class DecodeTestCase(unittest.TestCase):
         res = ['A', [['B', 'C'], ['D', 'E']], 'F']
         self.assertEqual(res, codec.decode_record(msg))
 
+    def test_decode_none_values_for_missed_ones(self):
+        msg = 'A|||B'
+        res = ['A', None, None, 'B']
+        self.assertEqual(res, codec.decode_record(msg))
+
+        msg = 'A|B^^C^D^^E|F'
+        res = ['A', ['B', None, 'C', 'D', None, 'E'], 'F']
+        self.assertEqual(res, codec.decode_record(msg))
+
 
 class EncodeTestCase(unittest.TestCase):
 
@@ -76,7 +85,7 @@ class EncodeTestCase(unittest.TestCase):
         msg = 'A|B^C\D^E|F^G|H'
         self.assertEqual(msg, codec.encode_record(codec.decode_record(msg)))
 
-    def test_count_encode_fields_as_empty_strings(self):
+    def test_count_none_fields_as_empty_strings(self):
         self.assertEqual('|B|', codec.encode_record([None,'B', None]))
 
 

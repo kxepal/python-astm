@@ -100,12 +100,12 @@ def decode_record(record):
             item = decode_repeated_component(item)
         elif COMPONENT_SEP in item:
             item = decode_component(item)
-        fields.append(item)
+        fields.append([None, item][bool(item)])
     return fields
 
 def decode_component(field):
     """Decodes ASTM field component."""
-    return field.split(COMPONENT_SEP)
+    return [[None, item][bool(item)] for item in field.split(COMPONENT_SEP)]
 
 def decode_repeated_component(component):
     """Decodes ASTM field repeated component."""
