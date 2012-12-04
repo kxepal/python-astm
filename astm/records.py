@@ -32,12 +32,12 @@ HeaderRecord = Record.build(
     NotUsedField(name='comments'),
     ConstantField(name='processing_id', default='P'),
     NotUsedField(name='version'),
-    DateTimeField(name='timestamp', default=datetime.now),
+    DateTimeField(name='timestamp', default=datetime.now, required=True),
 )
 
 PatientRecord = Record.build(
     ConstantField(name='type', default='P'),
-    IntegerField(name='seq', default=1),
+    IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='practice_id'),
     NotUsedField(name='laboratory_id'),
     NotUsedField(name='id'),
@@ -75,7 +75,7 @@ PatientRecord = Record.build(
 
 OrderRecord = Record.build(
     ConstantField(name='type', default='O'),
-    IntegerField(name='seq', default=1),
+    IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='sample_id'),
     NotUsedField(name='instrument_id'),
     NotUsedField(name='test'),
@@ -109,7 +109,7 @@ OrderRecord = Record.build(
 
 ResultRecord = Record.build(
     ConstantField(name='type', default='R'),
-    IntegerField(name='seq', default=1),
+    IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='test'),
     NotUsedField(name='value'),
     NotUsedField(name='units'),
@@ -126,7 +126,7 @@ ResultRecord = Record.build(
 
 CommentRecord = Record.build(
     ConstantField(name='type', default='C'),
-    IntegerField(name='seq', default=1),
+    IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='source'),
     NotUsedField(name='text'),
     NotUsedField(name='type')
@@ -134,6 +134,6 @@ CommentRecord = Record.build(
 
 TerminatorRecord = Record.build(
     ConstantField(name='type', default='L'),
-    IntegerField(name='seq', default=1),
+    ConstantField(name='seq', default=1),
     ConstantField(name='code', default='N')
 )
