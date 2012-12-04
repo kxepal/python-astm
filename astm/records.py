@@ -12,7 +12,9 @@
 
 from datetime import datetime
 from .mapping import (
-    Record, ConstantField, DateTimeField, IntegerField, NotUsedField
+    Record, ConstantField, DateTimeField, IntegerField, NotUsedField,
+    TextField, RepeatedComponentField, Component
+
 )
 
 __all__ = ['HeaderRecord', 'PatientRecord', 'OrderRecord',
@@ -20,7 +22,12 @@ __all__ = ['HeaderRecord', 'PatientRecord', 'OrderRecord',
 
 HeaderRecord = Record.build(
     ConstantField(name='type', default='H'),
-    ConstantField(name='delimeter', default='\^&'),
+    RepeatedComponentField(Component.build(
+        ConstantField(name='_', default=''),
+        TextField(name='__')
+    ), name='delimeter'),
+    # ^^^ workaround to define field:
+    # ConstantField(name='delimeter', default='\^&'),
     NotUsedField(name='message_id'),
     NotUsedField(name='password'),
     NotUsedField(name='sender'),
@@ -77,7 +84,7 @@ OrderRecord = Record.build(
     ConstantField(name='type', default='O'),
     IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='sample_id'),
-    NotUsedField(name='instrument_id'),
+    NotUsedField(name='instrument'),
     NotUsedField(name='test'),
     NotUsedField(name='priority'),
     NotUsedField(name='created_at'),
@@ -114,7 +121,7 @@ ResultRecord = Record.build(
     NotUsedField(name='value'),
     NotUsedField(name='units'),
     NotUsedField(name='reference_ranges'),
-    NotUsedField(name='is_abnormal'),
+    NotUsedField(name='abnormal_flag'),
     NotUsedField(name='abnormality_nature'),
     NotUsedField(name='status'),
     NotUsedField(name='normatives_changed_at'),
@@ -129,11 +136,11 @@ CommentRecord = Record.build(
     IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='source'),
     NotUsedField(name='text'),
-    NotUsedField(name='type')
+    NotUsedField(name='ctype')
 )
 
 TerminatorRecord = Record.build(
     ConstantField(name='type', default='L'),
-    ConstantField(name='seq', default=1),
+    ConstantField(name='seq', default='1'),
     ConstantField(name='code', default='N')
 )
