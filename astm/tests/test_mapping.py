@@ -73,6 +73,12 @@ class IntegerTestCase(unittest.TestCase):
         obj.field = 42
         self.assertEqual(obj.field, 42)
 
+    def test_set_string_value(self):
+        obj = self.Dummy()
+        obj.field = '42'
+        self.assertEqual(obj.field, 42)
+        self.assertRaises(TypeError, setattr, obj, 'field', 'foo')
+
 
 class DecimalFieldTestCase(unittest.TestCase):
 

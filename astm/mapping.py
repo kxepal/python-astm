@@ -238,7 +238,10 @@ class IntegerField(Field):
 
     def _set_value(self, value):
         if not isinstance(value, (int, long)):
-            raise TypeError('Integer value expected, got %r' % value)
+            try:
+                value = self._get_value(value)
+            except Exception:
+                raise TypeError('Integer value expected, got %r' % value)
         return super(IntegerField, self)._set_value(value)
 
 
