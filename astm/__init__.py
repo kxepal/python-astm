@@ -19,3 +19,6 @@ from .records import (
     HeaderRecord, PatientRecord, OrderRecord,
     ResultRecord, CommentRecord, TerminatorRecord
 )
+from .client import (
+    Client
+)
