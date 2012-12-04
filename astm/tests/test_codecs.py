@@ -19,7 +19,7 @@ class DecodeTestCase(unittest.TestCase):
 
     def test_astm_record(self):
         msg = 'P|1|2776833|||ABC||||||||||||||||||||'
-        res = ['P', '1', '2776833', '', '', 'ABC'] + [''] * 20
+        res = ['P', '1', '2776833', None, None, 'ABC'] + [None] * 20
         self.assertEqual(res, codec.decode_record(msg))
 
     def test_decode_frame(self):
