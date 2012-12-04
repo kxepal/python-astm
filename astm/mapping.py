@@ -320,6 +320,7 @@ class SetField(Field):
         return self.field._get_value(value)
 
     def _set_value(self, value):
+        value = self.field._get_value(value)
         if value not in self.values:
             raise ValueError('Unexpectable value %r' % value)
         return self.field._set_value(value)
