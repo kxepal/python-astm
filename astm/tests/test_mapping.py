@@ -25,11 +25,11 @@ class FieldTestCase(unittest.TestCase):
 
     def test_init_with_custom_name(self):
         f = mapping.Field(name='foo')
-        self.assertTrue(f.name, 'foo')
+        self.assertEqual(f.name, 'foo')
 
     def test_init_with_custom_default_value(self):
         f = mapping.Field(default='foo')
-        self.assertTrue(f.default, 'foo')
+        self.assertEqual(f.default, 'foo')
 
     def test_callable_default_value(self):
         class Dummy(mapping.Mapping):
@@ -141,7 +141,75 @@ class TextFieldTestCase(unittest.TestCase):
         self.assertEqual(obj._data['field'], u('привет'))
 
 
-class DatetimeTestCase(unittest.TestCase):
+class DateFieldTestCase(unittest.TestCase):
+
+    def setUp(self):
+        class Dummy(mapping.Mapping):
+            field = mapping.DateField()
+        self.Dummy = Dummy
+        self.datetime = datetime.datetime(2009, 2, 13, 23, 31, 30)
+        self.date = datetime.datetime(2009, 2, 13)
+
+    def test_get_value(self):
+        obj = self.Dummy(field=self.datetime)
+        self.assertEqual(obj.field, self.date)
+
+    def test_set_datetime_value(self):
+        obj = self.Dummy()
+        obj.field = self.datetime
+        self.assertEqual(obj.field, self.date)
+
+    def test_init_date_value(self):
+        obj = self.Dummy(field=self.date)
+        self.assertEqual(obj.field, self.date)
+
+    def test_set_date_value(self):
+        obj = self.Dummy()
+        obj.field = self.date
+        self.assertEqual(obj.field, self.date)
+
+    def test_raw_value(self):
+        obj = self.Dummy()
+        obj.field = self.datetime
+        self.assertEqual(obj._data['field'],
+                         self.date.strftime(obj._fields[0][1].format))
+
+
+class TimeFieldTestCase(unittest.TestCase):
+
+    def setUp(self):
+        class Dummy(mapping.Mapping):
+            field = mapping.TimeField()
+        self.Dummy = Dummy
+        self.datetime = datetime.datetime(2009, 2, 13, 23, 31, 30)
+        self.time = datetime.time(23, 31, 30)
+
+    def test_get_value(self):
+        obj = self.Dummy(field=self.datetime)
+        self.assertEqual(obj.field, self.time)
+
+    def test_set_datetime_value(self):
+        obj = self.Dummy()
+        obj.field = self.datetime
+        self.assertEqual(obj.field, self.time)
+
+    def test_init_time_value(self):
+        obj = self.Dummy(field=self.time)
+        self.assertEqual(obj.field, self.time)
+
+    def test_set_time_value(self):
+        obj = self.Dummy()
+        obj.field = self.time
+        self.assertEqual(obj.field, self.time)
+
+    def test_raw_value(self):
+        obj = self.Dummy()
+        obj.field = self.datetime
+        self.assertEqual(obj._data['field'],
+                         self.time.strftime(obj._fields[0][1].format))
+
+
+class DatetimeFieldTestCase(unittest.TestCase):
 
     def setUp(self):
         class Dummy(mapping.Mapping):
@@ -160,13 +228,13 @@ class DatetimeTestCase(unittest.TestCase):
         self.assertEqual(obj.field, self.datetime)
 
     def test_get_date_value(self):
-        obj = self.Dummy(field=self.datetime)
-        self.assertEqual(obj.field, self.datetime)
+        obj = self.Dummy(field=self.date)
+        self.assertEqual(obj.field, self.date)
 
     def test_set_date_value(self):
         obj = self.Dummy()
-        obj.field = self.datetime
-        self.assertEqual(obj.field, self.datetime)
+        obj.field = self.date
+        self.assertEqual(obj.field, self.date)
 
     def test_raw_value(self):
         obj = self.Dummy()
@@ -592,9 +660,23 @@ class MappingTestCase(unittest.TestCase):
         obj = self.Dummy('foo', [3, 2, 1])
         self.assertEqual(obj.to_astm(), ['foo', ['3', '2', '1']])
         obj = self.Thing(numbers=[[4, 2], [2, 3], [0, 1]])
-        self.assertEqual(
-            obj.to_astm_record(),
-            [['4', '2'], ['2', '3'], ['0', '1']])
+        self.assertEqual(obj.to_astm(), [['4', '2'], ['2', '3'], ['0', '1']])
+
+    def test_required_field(self):
+        class Dummy(mapping.Mapping):
+            field = mapping.Field(required=True)
+        obj = Dummy()
+        self.assertTrue(obj.field is None)
+        self.assertRaises(ValueError, obj.to_astm)
+
+    def test_field_max_length(self):
+        class Dummy(mapping.Mapping):
+            field = mapping.Field(length=10)
+        obj = Dummy()
+        obj.field = '-' * 9
+        obj.field = None
+        obj.field = '-' * 10
+        self.assertRaises(ValueError, setattr, obj, 'field', '-' * 11)
 
 
 if __name__ == '__main__':

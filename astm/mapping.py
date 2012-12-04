@@ -9,6 +9,7 @@
 
 import datetime
 import decimal
+import time
 import warnings
 from operator import itemgetter
 from itertools import islice
@@ -32,9 +33,11 @@ def make_string(value):
 
 class Field(object):
     """Base mapping field class."""
-    def __init__(self, name=None, default=None):
+    def __init__(self, name=None, default=None, required=False, length=None):
         self.name = name
         self.default = default
+        self.required = required
+        self.length = length
 
     def __get__(self, instance, owner):
         if instance is None:
@@ -58,7 +61,11 @@ class Field(object):
         return value
 
     def _set_value(self, value):
-        return make_string(value)
+        value = make_string(value)
+        if self.length is not None and len(value) > self.length:
+            raise ValueError('Field %r value is too long (max %d, got %d)'
+                            '' % (self.name, self.length, len(value)))
+        return value
 
 
 class MetaMapping(type):
@@ -162,7 +169,7 @@ class Mapping(_MappingProxy):
 
     def to_astm(self):
         def values(obj):
-            for key in obj.keys():
+            for key, field in obj._fields:
                 value = obj._data[key]
                 if isinstance(value, Mapping):
                     yield list(values(value))
@@ -172,6 +179,8 @@ class Mapping(_MappingProxy):
                             yield list(values(item))
                         else:
                             yield item
+                elif value is None and field.required:
+                    raise ValueError('Field %r value should not be None' % key)
                 else:
                     yield value
         return list(values(self))
@@ -206,11 +215,11 @@ class ConstantField(Field):
         ...
     ValueError: Field changing not allowed
     """
-    def __init__(self, name=None, default=None):
-        if default is not None:
-            assert isinstance(default, basestring)
-        super(ConstantField, self).__init__(name, default)
-        self.value = default
+    def __init__(self, *args, **kwargs):
+        super(ConstantField, self).__init__(*args, **kwargs)
+        self.value = self.default
+        if self.default is not None:
+            assert isinstance(self.default, basestring)
 
     def _get_value(self, value):
         return self.value
@@ -245,12 +254,41 @@ class DecimalField(Field):
         return super(DecimalField, self)._set_value(value)
 
 
+class DateField(Field):
+    """Mapping field for storing date/time values."""
+    format = '%Y%m%d'
+    def _get_value(self, value):
+        return datetime.datetime.strptime(value, self.format)
+
+    def _set_value(self, value):
+        if not isinstance(value, (datetime.datetime, datetime.date)):
+            raise TypeError('Datetime value expected, got %r' % value)
+        return value.strftime(self.format)
+
+
+class TimeField(Field):
+    """Mapping field for storing times."""
+    format = '%H%M%S'
+    def _get_value(self, value):
+        if isinstance(value, basestring):
+            try:
+                value = value.split('.', 1)[0] # strip out microseconds
+                value = datetime.time(*time.strptime(value, self.format)[3:6])
+            except ValueError:
+                raise ValueError('Invalid ISO time %r' % value)
+        return value
+
+    def _set_value(self, value):
+        if not isinstance(value, (datetime.datetime, datetime.time)):
+            raise TypeError('Datetime value expected, got %r' % value)
+        if isinstance(value, datetime.datetime):
+            value = value.time()
+        return value.replace(microsecond=0).strftime(self.format)
+
+
 class DateTimeField(Field):
     """Mapping field for storing date/time values."""
-    def __init__(self, name=None, default=None, format='%Y%m%d%H%M%S'):
-        self.format = format
-        super(DateTimeField, self).__init__(name, default)
-
+    format = '%Y%m%d%H%M%S'
     def _get_value(self, value):
         return datetime.datetime.strptime(value, self.format)
 
@@ -262,8 +300,10 @@ class DateTimeField(Field):
 
 class SetField(Field):
     """Mapping field for predefined set of values."""
-    def __init__(self, name=None, default=None, values=None, field=Field()):
-        super(SetField, self).__init__(name, default)
+    def __init__(self, name=None, default=None,
+                 required=False, length=None,
+                 values=None, field=Field()):
+        super(SetField, self).__init__(name, default, required, length)
         self.field = field
         self.values = values and set(values) or set([])
 
