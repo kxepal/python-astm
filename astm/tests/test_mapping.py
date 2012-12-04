@@ -590,7 +590,7 @@ class MappingTestCase(unittest.TestCase):
 
     def test_to_astm_record(self):
         obj = self.Dummy('foo', [3, 2, 1])
-        self.assertEqual(obj.to_astm_record(), ['foo', ['3', '2', '1']])
+        self.assertEqual(obj.to_astm(), ['foo', ['3', '2', '1']])
         obj = self.Thing(numbers=[[4, 2], [2, 3], [0, 1]])
         self.assertEqual(
             obj.to_astm_record(),

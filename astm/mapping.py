@@ -158,9 +158,9 @@ class Mapping(_MappingProxy):
         return [getattr(self, key) for key in self.keys()]
 
     def items(self):
-        return zip(self.keys(), self.values())
+        return [(key, getattr(self, key)) for key, field in self._fields]
 
-    def to_astm_record(self):
+    def to_astm(self):
         def values(obj):
             for key in obj.keys():
                 value = obj._data[key]
