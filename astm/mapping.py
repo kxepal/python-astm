@@ -226,7 +226,8 @@ class ConstantField(Field):
 
     def _set_value(self, value):
         if self.default != value:
-            raise ValueError('Field changing not allowed')
+            raise ValueError('Field changing not allowed: got %r, accepts %r'
+                            '' % (value, self.default))
         return super(ConstantField, self)._set_value(value)
 
 
@@ -259,6 +260,8 @@ class DateField(Field):
         return datetime.datetime.strptime(value, self.format)
 
     def _set_value(self, value):
+        if isinstance(value, basestring):
+            value = self._get_value(value)
         if not isinstance(value, (datetime.datetime, datetime.date)):
             raise TypeError('Datetime value expected, got %r' % value)
         return value.strftime(self.format)
@@ -273,10 +276,13 @@ class TimeField(Field):
                 value = value.split('.', 1)[0] # strip out microseconds
                 value = datetime.time(*time.strptime(value, self.format)[3:6])
             except ValueError:
-                raise ValueError('Invalid ISO time %r' % value)
+                raise ValueError('Value %r does not match format %s'
+                                 '' % (value, self.format))
         return value
 
     def _set_value(self, value):
+        if isinstance(value, basestring):
+            value = self._get_value(value)
         if not isinstance(value, (datetime.datetime, datetime.time)):
             raise TypeError('Datetime value expected, got %r' % value)
         if isinstance(value, datetime.datetime):
@@ -291,6 +297,8 @@ class DateTimeField(Field):
         return datetime.datetime.strptime(value, self.format)
 
     def _set_value(self, value):
+        if isinstance(value, basestring):
+            value = self._get_value(value)
         if not isinstance(value, (datetime.datetime, datetime.date)):
             raise TypeError('Datetime value expected, got %r' % value)
         return value.strftime(self.format)

@@ -174,6 +174,11 @@ class DateFieldTestCase(unittest.TestCase):
         self.assertEqual(obj._data['field'],
                          self.date.strftime(obj._fields[0][1].format))
 
+    def test_set_string_value(self):
+        obj = self.Dummy()
+        obj.field = '20090213'
+        self.assertRaises(ValueError, setattr, obj, 'field', '123456')
+
 
 class TimeFieldTestCase(unittest.TestCase):
 
@@ -208,6 +213,11 @@ class TimeFieldTestCase(unittest.TestCase):
         self.assertEqual(obj._data['field'],
                          self.time.strftime(obj._fields[0][1].format))
 
+    def test_set_string_value(self):
+        obj = self.Dummy()
+        obj.field = '111213'
+        self.assertRaises(ValueError, setattr, obj, 'field', '314159')
+
 
 class DatetimeFieldTestCase(unittest.TestCase):
 
@@ -241,6 +251,11 @@ class DatetimeFieldTestCase(unittest.TestCase):
         obj.field = self.datetime
         self.assertEqual(obj._data['field'],
                          self.datetime.strftime(obj._fields[0][1].format))
+
+    def test_set_string_value(self):
+        obj = self.Dummy()
+        obj.field = '20090213233130'
+        self.assertRaises(ValueError, setattr, obj, 'field', '12345678901234')
 
 
 class ConstantFieldTestCase(unittest.TestCase):
