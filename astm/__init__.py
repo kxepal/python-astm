@@ -20,5 +20,5 @@ from .records import (
     ResultRecord, CommentRecord, TerminatorRecord
 )
 from .client import (
-    Client
+    Server, Client, Session
 )
