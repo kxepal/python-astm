@@ -410,7 +410,7 @@ class RepeatedComponentField(Field):
             return '<ListProxy %s %r>' % (self.list, list(self))
 
         def __str__(self):
-            return bytes(self.list)
+            return str(self.list)
 
         def __unicode__(self):
             return unicode(self.list)
