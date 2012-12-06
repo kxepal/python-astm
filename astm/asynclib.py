@@ -432,17 +432,18 @@ class AsyncChat(Dispatcher):
     # we don't want to enable the use of encoding by default, because that is a
     # sign of an application bug that we don't want to pass silently
 
-    use_encoding            = 0
+    use_encoding            = False
     encoding                = 'latin1'
 
     def __init__(self, sock=None, map=None):
         # for string terminator matching
-        self._inbox_buffer = b('')
-        self._fifo = deque()
+        self._input_buffer = ''
+        self.inbox = deque()
+        self.outbox = deque()
         super(AsyncChat, self).__init__(sock, map)
 
     def collect_incoming_data(self, data):
-        raise NotImplementedError("must be implemented in subclass")
+        self.inbox.append(data)
 
     def found_terminator(self):
         raise NotImplementedError("must be implemented in subclass")
@@ -464,27 +465,28 @@ class AsyncChat(Dispatcher):
             self.handle_error()
             return
 
-        if isinstance(data, unicode) and self.use_encoding:
-            data = bytes(unicode, self.encoding)
-        self._inbox_buffer += data
+        if isinstance(data, bytes) and self.use_encoding:
+            data = data.decode(self.encoding)
 
-        while self._inbox_buffer:
-            lb = len(self._inbox_buffer)
+        self._input_buffer += data
+
+        while self._input_buffer:
+            lb = len(self._input_buffer)
             terminator = self.terminator
             if not terminator:
                 # no terminator, collect it all
-                self.collect_incoming_data(self._inbox_buffer)
-                self._inbox_buffer = b('')
+                self.collect_incoming_data(self._input_buffer)
+                self._input_buffer = ''
             elif isinstance(terminator, (int, long)):
                 # numeric terminator
                 n = terminator
                 if lb < n:
-                    self.collect_incoming_data(self._inbox_buffer)
-                    self._inbox_buffer = b('')
+                    self.collect_incoming_data(self._input_buffer)
+                    self._input_buffer = ''
                     self.terminator -= self.terminator
                 else:
-                    self.collect_incoming_data(self._inbox_buffer[:n])
-                    self._inbox_buffer = self._inbox_buffer[n:]
+                    self.collect_incoming_data(self._input_buffer[:n])
+                    self._input_buffer = self._input_buffer[n:]
                     self.terminator = 0
                     self.found_terminator()
             else:
@@ -496,28 +498,28 @@ class AsyncChat(Dispatcher):
                 # 3) end of buffer does not match any prefix:
                 #    collect data
                 terminator_len = len(terminator)
-                index = self._inbox_buffer.find(terminator)
+                index = self._input_buffer.find(terminator)
                 if index != -1:
                     # we found the terminator
                     if index > 0:
                         # don't bother reporting the empty string (source of subtle bugs)
-                        self.collect_incoming_data(self._inbox_buffer[:index])
-                    self._inbox_buffer = self._inbox_buffer[index+terminator_len:]
+                        self.collect_incoming_data(self._input_buffer[:index])
+                    self._input_buffer = self._input_buffer[index+terminator_len:]
                     # This does the Right Thing if the terminator is changed here.
                     self.found_terminator()
                 else:
                     # check for a prefix of the terminator
-                    index = find_prefix_at_end(self._inbox_buffer, terminator)
+                    index = find_prefix_at_end(self._input_buffer, terminator)
                     if index:
                         if index != lb:
                             # we found a prefix, collect up to the prefix
-                            self.collect_incoming_data(self._inbox_buffer[:-index])
-                            self._inbox_buffer = self._inbox_buffer[-index:]
+                            self.collect_incoming_data(self._input_buffer[:-index])
+                            self._input_buffer = self._input_buffer[-index:]
                         break
                     else:
                         # no prefix, collect it all
-                        self.collect_incoming_data(self._inbox_buffer)
-                        self._inbox_buffer = b('')
+                        self.collect_incoming_data(self._input_buffer)
+                        self._input_buffer = ''
 
     def handle_write(self):
         self.initiate_send()
@@ -529,52 +531,39 @@ class AsyncChat(Dispatcher):
         sabs = self.send_buffer_size
         if len(data) > sabs:
             for i in range(0, len(data), sabs):
-                self._fifo.append(data[i:i+sabs])
+                self.outbox.append(data[i:i+sabs])
         else:
-            self._fifo.append(data)
+            self.outbox.append(data)
         self.initiate_send()
 
     def push_with_producer(self, producer):
-        self._fifo.append(producer)
+        self.outbox.append(producer)
         self.initiate_send()
 
     def readable(self):
         """Predicate for inclusion in the readable for select()"""
-        # cannot use the old predicate, it violates the claim of the
-        # set_terminator method.
-
-        # return (len(self._inbox_buffer) <= self.recv_buffer_size)
-        return 1
+        return True
 
     def writable(self):
         """Predicate for inclusion in the writable for select()"""
-        return self._fifo or (not self.connected)
+        return bool(self.outbox and self.connected)
 
     def close_when_done(self):
         """"Automatically close this channel once the outgoing queue is empty"""
-        self._fifo.append(None)
+        self.outbox.append(None)
 
     def initiate_send(self):
-        while self._fifo and self.connected:
-            first = self._fifo[0]
+        while self.outbox and self.connected:
+            first = self.outbox[0]
             # handle empty string/buffer or None entry
             if not first:
-                del self._fifo[0]
+                del self.outbox[0]
                 if first is None:
                     self.handle_close()
                     return
 
-            # handle classic producer behavior
             obs = self.send_buffer_size
-            try:
-                data = buffer(first, 0, obs)
-            except TypeError:
-                data = first.more()
-                if data:
-                    self._fifo.appendleft(data)
-                else:
-                    del self._fifo[0]
-                continue
+            data = buffer(first, 0, obs)
 
             # send the data
             try:
@@ -585,15 +574,15 @@ class AsyncChat(Dispatcher):
 
             if num_sent:
                 if num_sent < len(data) or obs < len(first):
-                    self._fifo[0] = first[num_sent:]
+                    self.outbox[0] = first[num_sent:]
                 else:
-                    del self._fifo[0]
+                    del self.outbox[0]
                 # we tried to send some actual data
             return
 
     def discard_buffers(self):
-        self._inbox_buffer = b('')
-        self._fifo.clear()
+        self._input_buffer = b('')
+        self.outbox.clear()
 
 
 def find_prefix_at_end(haystack, needle):
