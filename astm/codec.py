@@ -9,22 +9,10 @@
 
 from collections import Iterable
 from .compat import basestring
+from .constants import (
+    STX, ETX, CR, LF, CRLF, FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP
+)
 
-STX = '\x02'
-ETX = '\x03'
-EOT = '\x04'
-ENQ = '\x05'
-ACK = '\x06'
-LF  = '\x0A'
-CR  = '\x0D'
-NAK = '\x15'
-CRLF = CR + LF
-
-RECORD_SEP    = '\x0D' # \r #
-FIELD_SEP     = '\x7C' # |  #
-REPEAT_SEP    = '\x5C' # \  #
-COMPONENT_SEP = '\x5E' # ^  #
-ESCAPE_SEP    = '\x26' # &  #
 
 def decode(data):
     """Common ASTM decoding function that tries to guess which kind of data it
@@ -145,7 +133,7 @@ def encode_message(seq, records):
     :rtype: str
     """
     data = RECORD_SEP.join(encode_record(record) for record in records)
-    data = ''.join((str(seq), data , CR, ETX))
+    data = ''.join((str(seq), data, CR, ETX))
     return ''.join([STX, data, make_checksum(data), CR, LF])
 
 def encode_record(record):
