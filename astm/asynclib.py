@@ -433,7 +433,7 @@ class AsyncChat(Dispatcher):
     # sign of an application bug that we don't want to pass silently
 
     use_encoding            = False
-    encoding                = 'latin1'
+    encoding                = 'utf-8'
 
     def __init__(self, sock=None, map=None):
         # for string terminator matching
