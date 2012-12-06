@@ -432,8 +432,8 @@ class AsyncChat(Dispatcher):
     # we don't want to enable the use of encoding by default, because that is a
     # sign of an application bug that we don't want to pass silently
 
-    use_encoding            = False
-    encoding                = 'utf-8'
+    use_encoding = False
+    encoding = 'utf-8'
 
     def __init__(self, sock=None, map=None):
         # for string terminator matching
