@@ -9,6 +9,10 @@
 
 STX = '\x02'
 ETX = '\x03'
+EOT = '\x04'
+ENQ = '\x05'
+ACK = '\x06'
+NAK = '\x15'
 ETB = '\x17'
 LF  = '\x0A'
 CR  = '\x0D'
