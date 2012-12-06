@@ -66,7 +66,7 @@ def write(obj):
 def exception(obj):
     """Triggers ``handle_read_event`` for specified object."""
     try:
-        obj.handle_expt_event()
+        obj.handle_exception_event()
     except _RERAISEABLE_EXC:
         raise
     except Exception:
@@ -79,7 +79,7 @@ def readwrite(obj, flags):
         if flags & select.POLLOUT:
             obj.handle_write_event()
         if flags & select.POLLPRI:
-            obj.handle_expt_event()
+            obj.handle_exception_event()
         if flags & (select.POLLHUP | select.POLLERR | select.POLLNVAL):
             obj.handle_close()
     except socket.error as e:
@@ -183,7 +183,7 @@ class Dispatcher(object):
                     # The socket is broken in some unknown way, alert
                     # the user and remove it from the map (to prevent
                     # polling of broken sockets).
-                    self.del_channel(map)
+                    self._del_channel(map)
                     raise
         else:
             self.socket = None
@@ -203,18 +203,18 @@ class Dispatcher(object):
 
     __str__ = __repr__
 
-    def add_channel(self, map=None):
-        log.debug('adding channel %s' % self)
+    def _add_channel(self, map=None):
+        log.debug('Adding channel %s' % self)
         if map is None:
             map = self._map
         map[self._fileno] = self
 
-    def del_channel(self, map=None):
+    def _del_channel(self, map=None):
         fd = self._fileno
         if map is None:
             map = self._map
         if fd in map:
-            log.debug('closing channel %d:%s' % (fd, self))
+            log.debug('Closing channel %d:%s' % (fd, self))
             del map[fd]
         self._fileno = None
 
@@ -227,7 +227,7 @@ class Dispatcher(object):
     def set_socket(self, sock, map=None):
         self.socket = sock
         self._fileno = sock.fileno()
-        self.add_channel(map)
+        self._add_channel(map)
 
     def set_reuse_addr(self):
         try:
@@ -315,7 +315,7 @@ class Dispatcher(object):
     def close(self):
         self.connected = False
         self.accepting = False
-        self.del_channel()
+        self._del_channel()
         try:
             self.socket.close()
         except socket.error as err:
@@ -355,8 +355,8 @@ class Dispatcher(object):
             self.handle_connect_event()
         self.handle_write()
 
-    def handle_expt_event(self):
-        # handle_expt_event() is called if there might be an error on the
+    def handle_exception_event(self):
+        # handle_exception_event() is called if there might be an error on the
         # socket, or if there is OOB data
         # check for the error condition first
         err = self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
@@ -368,7 +368,7 @@ class Dispatcher(object):
             # data
             self.handle_close()
         else:
-            self.handle_expt()
+            self.handle_exception()
 
     def handle_error(self):
         try:
@@ -376,13 +376,13 @@ class Dispatcher(object):
         except Exception:
             self_repr = '<__repr__(self) failed for object at %0x>' % id(self)
 
-        log.exception('Uncaptured python exception, closing channel %s',
+        log.exception('Uncatched python exception, closing channel %s',
                       self_repr)
 
         self.handle_close()
 
     def handle_exception(self):
-        log.debug('Unhandled inbox priority event')
+        log.exception('Unknown error')
 
     def handle_read(self):
         log.debug('Unhandled read event')
@@ -394,10 +394,9 @@ class Dispatcher(object):
         log.debug('Unhandled connect event')
 
     def handle_accept(self):
-        log.debug('Unhandled accept event')
+        pass
 
     def handle_close(self):
-        log.info('Uhandled close event')
         self.close()
 
 
@@ -523,9 +522,6 @@ class AsyncChat(Dispatcher):
 
     def handle_write(self):
         self.initiate_send()
-
-    def handle_close(self):
-        self.close()
 
     def push(self, data):
         sabs = self.send_buffer_size
@@ -657,4 +653,4 @@ if os.name == 'posix':
         def set_file(self, fd):
             self.socket = FileWrapper(fd)
             self._fileno = self.socket.fileno()
-            self.add_channel()
+            self._add_channel()
