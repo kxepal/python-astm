@@ -9,6 +9,19 @@
 # you should have received as part of this distribution.
 #
 
+"""
+:mod:`astm.asynclib` --- Asynchronous socket handler
+====================================================
+
+.. module:: astm.asynclib
+   :synopsis: Forked version of asyncore mixed with asynchat.
+.. moduleauthor:: Sam Rushing <rushing@nightmare.com>
+.. sectionauthor:: Christopher Petrilli <petrilli@amber.org>
+.. sectionauthor:: Steve Holden <sholden@holdenweb.com>
+.. heavily adapted from original documentation by Sam Rushing
+
+"""
+
 import logging
 import os
 import select
@@ -20,7 +33,7 @@ from errno import (
     ENOTCONN, ESHUTDOWN, EINTR, EISCONN, EBADF, ECONNABORTED, EPIPE, EAGAIN,
     errorcode
 )
-from .compat import long, b, unicode, bytes, buffer
+from .compat import long, b, bytes, buffer
 
 class ExitNow(Exception):
     pass
@@ -64,7 +77,7 @@ def write(obj):
         obj.handle_error()
 
 def exception(obj):
-    """Triggers ``handle_read_event`` for specified object."""
+    """Triggers ``handle_exception_event`` for specified object."""
     try:
         obj.handle_exception_event()
     except _RERAISEABLE_EXC:
@@ -138,6 +151,23 @@ def poll(timeout=0.0, map=None):
             exception(obj)
 
 def loop(timeout=30.0, map=None, count=None):
+    """
+    Enter a polling loop that terminates after count passes or all open
+    channels have been closed. All arguments are optional. The *count*
+    parameter defaults to None, resulting in the loop terminating only when all
+    channels have been closed. The *timeout* argument sets the timeout
+    parameter for the appropriate :func:`select` or :func:`poll` call, measured
+    in seconds; the default is 30 seconds. The *use_poll* parameter, if true,
+    indicates that :func:`poll` should be used in preference to :func:`select`
+    (the default is ``False``).
+
+    The *map* parameter is a dictionary whose items are the channels to watch.
+    As channels are closed they are deleted from their map. If *map* is
+    omitted, a global map is used. Channels (instances of
+    :class:`asyncore.dispatcher`, :class:`asynchat.async_chat` and subclasses
+    thereof) can freely be mixed in the map.
+
+    """
     if map is None:
         map = _SOCKET_MAP
 
@@ -152,6 +182,39 @@ def loop(timeout=30.0, map=None, count=None):
 
 
 class Dispatcher(object):
+    """
+    The :class:`Dispatcher` class is a thin wrapper around a low-level socket
+    object. To make it more useful, it has a few methods for event-handling
+    which are called from the asynchronous loop. Otherwise, it can be treated
+    as a normal non-blocking socket object.
+
+    The firing of low-level events at certain times or in certain connection
+    states tells the asynchronous loop that certain higher-level events have
+    taken place. For example, if we have asked for a socket to connect to
+    another host, we know that the connection has been made when the socket
+    becomes writable for the first time (at this point you know that you may
+    write to it with the expectation of success). The implied higher-level
+    events are:
+
+    +----------------------+----------------------------------------+
+    | Event                | Description                            |
+    +======================+========================================+
+    | ``handle_connect()`` | Implied by the first read or write     |
+    |                      | event                                  |
+    +----------------------+----------------------------------------+
+    | ``handle_close()``   | Implied by a read event with no data   |
+    |                      | available                              |
+    +----------------------+----------------------------------------+
+    | ``handle_accept()``  | Implied by a read event on a listening |
+    |                      | socket                                 |
+    +----------------------+----------------------------------------+
+
+    During asynchronous processing, each mapped channel's :meth:`readable` and
+    :meth:`writable` methods are used to determine whether the channel's socket
+    should be added to the list of channels :c:func:`select`\ ed or
+    :c:func:`poll`\ ed for read and write events.
+
+    """
 
     connected = False
     accepting = False
@@ -219,6 +282,11 @@ class Dispatcher(object):
         self._fileno = None
 
     def create_socket(self, family, type):
+        """
+        This is identical to the creation of a normal socket, and will use
+        the same options for creation. Refer to the :mod:`socket` documentation
+        for information on creating sockets.
+        """
         self.family_and_type = family, type
         sock = socket.socket(family, type)
         sock.setblocking(0)
@@ -240,22 +308,50 @@ class Dispatcher(object):
             pass
 
     def readable(self):
+        """
+        Called each time around the asynchronous loop to determine whether a
+        channel's socket should be added to the list on which read events can
+        occur. The default method simply returns ``True``, indicating that by
+        default, all channels will be interested in read events."""
         return True
 
     def writable(self):
+        """
+        Called each time around the asynchronous loop to determine whether a
+        channel's socket should be added to the list on which write events can
+        occur. The default method simply returns ``True``, indicating that by
+        default, all channels will be interested in write events.
+        """
         return True
 
     def listen(self, num):
+        """Listen for connections made to the socket.
+
+        The `num` argument specifies the maximum number of queued connections
+        and should be at least 1; the maximum value is system-dependent
+        (usually 5)."""
         self.accepting = True
         if os.name == 'nt' and num > 5:
             num = 5
         return self.socket.listen(num)
 
-    def bind(self, addr):
-        self.addr = addr
-        return self.socket.bind(addr)
+    def bind(self, address):
+        """Bind the socket to `address`.
+
+        The socket must not already be bound. The format of `address` depends
+        on the address family --- refer to the :mod:`socket` documentation for
+        more information. To mark the socket as re-usable (setting the
+        :const:`SO_REUSEADDR` option), call the :class:`Dispatcher` object's
+        :meth:`set_reuse_addr` method.
+        """
+        self.addr = address
+        return self.socket.bind(address)
 
     def connect(self, address):
+        """
+        As with the normal socket object, `address` is a tuple with the first
+        element the host to connect to, and the second the port number.
+        """
         self.connected = False
         err = self.socket.connect_ex(address)
         if err in (EINPROGRESS, EALREADY, EWOULDBLOCK)\
@@ -268,7 +364,18 @@ class Dispatcher(object):
             raise socket.error(err, errorcode[err])
 
     def accept(self):
-        # XXX can return either an address pair or None
+        """Accept a connection.
+
+        The socket must be bound to an address and listening for connections.
+        The return value can be either ``None`` or a pair ``(conn, address)``
+        where `conn` is a *new* socket object usable to send and receive data on
+        the connection, and *address* is the address bound to the socket on the
+        other end of the connection.
+
+        When ``None`` is returned it means the connection didn't take place, in
+        which case the server should just ignore this event and keep listening
+        for further incoming connections.
+        """
         try:
             conn, addr = self.socket.accept()
         except TypeError:
@@ -282,6 +389,7 @@ class Dispatcher(object):
             return conn, addr
 
     def send(self, data):
+        """Send `data` to the remote end-point of the socket."""
         try:
             result = self.socket.send(data)
             return result
@@ -295,6 +403,11 @@ class Dispatcher(object):
                 raise
 
     def recv(self, buffer_size):
+        """Read at most `buffer_size` bytes from the socket's remote end-point.
+
+        An empty string implies that the channel has been closed from the other
+        end.
+        """
         try:
             data = self.socket.recv(buffer_size)
             if not data:
@@ -313,6 +426,13 @@ class Dispatcher(object):
                 raise
 
     def close(self):
+        """Close the socket.
+        
+        All future operations on the socket object will fail.
+        The remote end-point will receive no more data (after queued data is
+        flushed). Sockets are automatically closed when they are
+        garbage-collected.
+        """
         self.connected = False
         self.accepting = False
         self._del_channel()
@@ -371,6 +491,10 @@ class Dispatcher(object):
             self.handle_exception()
 
     def handle_error(self):
+        """
+        Called when an exception is raised and not otherwise handled.
+        The default version prints a condensed traceback.
+        """
         try:
             self_repr = repr(self)
         except Exception:
@@ -388,15 +512,34 @@ class Dispatcher(object):
         log.debug('Unhandled read event')
 
     def handle_write(self):
+        """
+        Called when the asynchronous loop detects that a writable socket can be
+        written. Often this method will implement the necessary buffering for
+        performance. For example::
+
+            def handle_write(self):
+                sent = self.send(self.buffer)
+                self.buffer = self.buffer[sent:]
+        """
         log.debug('Unhandled write event')
 
     def handle_connect(self):
+        """
+        Called when the active opener's socket actually makes a connection.
+        Might send a "welcome" banner, or initiate a protocol negotiation with
+        the remote endpoint, for example.
+        """
         log.debug('Unhandled connect event')
 
     def handle_accept(self):
-        pass
+        """
+        Called on listening channels (passive openers) when a connection can be
+        established with a new remote endpoint that has issued a :meth:`connect`
+        call for the local endpoint.
+        """
 
     def handle_close(self):
+        """Called when the socket is closed."""
         self.close()
 
 
@@ -420,18 +563,31 @@ def close_all(map=None, ignore_all=False):
 
 
 class AsyncChat(Dispatcher):
-    """This is an abstract class.  You must derive from this class, and add
-    the two methods collect_incoming_data() and found_terminator()"""
+    """
+    This class is an abstract subclass of :class:`Dispatcher`. To make
+    practical use of the code you must subclass :class:`AsyncChat`, providing
+    meaningful meth:`found_terminator` method.
+    The :class:`Dispatcher` methods can be used, although not all make
+    sense in a message/response context.
+
+    Like :class:`Dispatcher`, :class:`AsyncChat` defines a set of
+    events that are generated by an analysis of socket conditions after a
+    :c:func:`select` call. Once the polling loop has been started the
+    :class:`AsyncChat` object's methods are called by the event-processing
+    framework with no action on the part of the programmer.
+    """
 
     # these are overridable defaults
 
+    #: The asynchronous input buffer size.
     recv_buffer_size = 4096
+    #: The asynchronous output buffer size.
     send_buffer_size = 4096
 
-    # we don't want to enable the use of encoding by default, because that is a
-    # sign of an application bug that we don't want to pass silently
-
+    #: Encoding usage is not enabled by default, because that is a
+    #: sign of an application bug that we don't want to pass silently.
     use_encoding = False
+    #: Default encoding.
     encoding = 'utf-8'
 
     _terminator = None
@@ -444,19 +600,46 @@ class AsyncChat(Dispatcher):
         super(AsyncChat, self).__init__(sock, map)
 
     def collect_incoming_data(self, data):
+        """Puts `data` into incoming queue. Also available by alias
+        `collect_incoming_data`.
+        """
         self.inbox.append(data)
 
     def found_terminator(self):
+        """
+        Called when the incoming data stream  matches the :attr:`termination`
+        condition. The default method, which must be overridden, raises a
+        :exc:`NotImplementedError` exception. The buffered input data should be
+        available via an instance attribute.
+        """
         raise NotImplementedError("must be implemented in subclass")
 
     def _set_terminator(self, term):
-        """Set the input delimiter.
-        Can be a fixed string of any length, an integer, or None."""
         self._terminator = term
 
     def _get_terminator(self):
         return self._terminator
 
+    #: The input delimiter andthe terminating condition to be recognized on the
+    #: channel. Maay be any of three types of value, corresponding to three
+    #: different ways to handle incoming protocol data.
+    #:
+    #: +-----------+---------------------------------------------+
+    #: | term      | Description                                 |
+    #: +===========+=============================================+
+    #: | *string*  | Will call :meth:`found_terminator` when the |
+    #: |           | string is found in the input stream         |
+    #: +-----------+---------------------------------------------+
+    #: | *integer* | Will call :meth:`found_terminator` when the |
+    #: |           | indicated number of characters have been    |
+    #: |           | received                                    |
+    #: +-----------+---------------------------------------------+
+    #: | ``None``  | The channel continues to collect data       |
+    #: |           | forever                                     |
+    #: +-----------+---------------------------------------------+
+    #:
+    #: Note that any data following the terminator will be available for reading
+    #: by the channel after :meth:`found_terminator` is called.
     terminator = property(_get_terminator, _set_terminator)
 
     def handle_read(self):
@@ -523,6 +706,11 @@ class AsyncChat(Dispatcher):
         self.initiate_send()
 
     def push(self, data):
+        """
+        Pushes data on to the channel's fifo to ensure its transmission.
+        This is all you need to do to have the channel write the data out to
+        the network.
+        """
         sabs = self.send_buffer_size
         if len(data) > sabs:
             for i in range(0, len(data), sabs):
@@ -544,10 +732,11 @@ class AsyncChat(Dispatcher):
         return bool(self.outbox and self.connected)
 
     def close_when_done(self):
-        """"Automatically close this channel once the outgoing queue is empty"""
+        """Automatically close this channel once the outgoing queue is empty."""
         self.outbox.append(None)
 
     def initiate_send(self):
+        """Sends all data from outgoing queue."""
         while self.outbox and self.connected:
             self._send_chunky(self.outbox.popleft())
 
@@ -577,7 +766,10 @@ class AsyncChat(Dispatcher):
                 return True
 
     def discard_buffers(self):
+        """In emergencies this method will discard any data held in the input
+        and output buffers."""
         self._input_buffer = b('')
+        self.inbox.clear()
         self.outbox.clear()
 
 
@@ -594,7 +786,7 @@ def find_prefix_at_end(haystack, needle):
 # digging through the linux kernel), I've determined that select()
 # isn't meant for doing asynchronous file i/o.
 # Heartening, though - reading linux/mm/filemap.c shows that linux
-# supports asynchronous read-ahead.  So _MOST_ of the time, the data
+# supports asynchronous read-ahead. So _MOST_ of the time, the data
 # will be sitting in memory for us already when we go to read it.
 #
 # What other OS's (besides NT) support async file i/o?  [VMS?]
