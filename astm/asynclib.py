@@ -598,8 +598,10 @@ class AsyncChat(Dispatcher):
         self.inbox = deque()
         self.outbox = deque()
         super(AsyncChat, self).__init__(sock, map)
+        self.collect_incoming_data = self.pull
+        self.initiate_send = self.flush
 
-    def collect_incoming_data(self, data):
+    def pull(self, data):
         """Puts `data` into incoming queue. Also available by alias
         `collect_incoming_data`.
         """
@@ -659,15 +661,15 @@ class AsyncChat(Dispatcher):
             terminator = self.terminator
             if not terminator:
                 # no terminator, collect it all
-                self.collect_incoming_data(self._input_buffer)
+                self.pull(self._input_buffer)
                 self._input_buffer = ''
             elif isinstance(terminator, (int, long)):
                 # numeric terminator
                 if lb < terminator:
-                    self.collect_incoming_data(self._input_buffer)
+                    self.pull(self._input_buffer)
                     self._input_buffer = ''
                 else:
-                    self.collect_incoming_data(self._input_buffer[:terminator])
+                    self.pull(self._input_buffer[:terminator])
                     self._input_buffer = self._input_buffer[terminator:]
                     self.found_terminator()
             else:
@@ -684,7 +686,7 @@ class AsyncChat(Dispatcher):
                     # we found the terminator
                     if index > 0:
                         # don't bother reporting the empty string (source of subtle bugs)
-                        self.collect_incoming_data(self._input_buffer[:index])
+                        self.pull(self._input_buffer[:index])
                     self._input_buffer = self._input_buffer[index+terminator_len:]
                     # This does the Right Thing if the terminator is changed here.
                     self.found_terminator()
@@ -694,16 +696,16 @@ class AsyncChat(Dispatcher):
                     if index:
                         if index != lb:
                             # we found a prefix, collect up to the prefix
-                            self.collect_incoming_data(self._input_buffer[:-index])
+                            self.pull(self._input_buffer[:-index])
                             self._input_buffer = self._input_buffer[-index:]
                         break
                     else:
                         # no prefix, collect it all
-                        self.collect_incoming_data(self._input_buffer)
+                        self.pull(self._input_buffer)
                         self._input_buffer = ''
 
     def handle_write(self):
-        self.initiate_send()
+        self.flush()
 
     def push(self, data):
         """
@@ -717,11 +719,11 @@ class AsyncChat(Dispatcher):
                 self.outbox.append(data[i:i+sabs])
         else:
             self.outbox.append(data)
-        return self.initiate_send()
+        return self.flush()
 
     def push_with_producer(self, producer):
         self.outbox.append(producer)
-        return self.initiate_send()
+        return self.flush()
 
     def readable(self):
         """Predicate for inclusion in the readable for select()"""
@@ -735,7 +737,7 @@ class AsyncChat(Dispatcher):
         """Automatically close this channel once the outgoing queue is empty."""
         self.outbox.append(None)
 
-    def initiate_send(self):
+    def flush(self):
         """Sends all data from outgoing queue."""
         while self.outbox and self.connected:
             self._send_chunky(self.outbox.popleft())
