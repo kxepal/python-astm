@@ -530,11 +530,11 @@ class AsyncChat(Dispatcher):
                 self.outbox.append(data[i:i+sabs])
         else:
             self.outbox.append(data)
-        self.initiate_send()
+        return self.initiate_send()
 
     def push_with_producer(self, producer):
         self.outbox.append(producer)
-        self.initiate_send()
+        return self.initiate_send()
 
     def readable(self):
         """Predicate for inclusion in the readable for select()"""
@@ -550,31 +550,32 @@ class AsyncChat(Dispatcher):
 
     def initiate_send(self):
         while self.outbox and self.connected:
-            first = self.outbox[0]
-            # handle empty string/buffer or None entry
-            if not first:
-                del self.outbox[0]
-                if first is None:
-                    self.handle_close()
-                    return
+            self._send_chunky(self.outbox.popleft())
 
-            obs = self.send_buffer_size
-            data = buffer(first, 0, obs)
+    def _send_chunky(self, data):
+        """Sends data as chunks sized by ``send_buffer_size`` value.
 
-            # send the data
-            try:
-                num_sent = self.send(data)
-            except socket.error:
-                self.handle_error()
+        Returns ``True`` on success, ``False`` on error and ``None`` on closing
+        event.
+        """
+        while True:
+            if data is None:
+                self.handle_close()
                 return
 
-            if num_sent:
-                if num_sent < len(data) or obs < len(first):
-                    self.outbox[0] = first[num_sent:]
-                else:
-                    del self.outbox[0]
-                # we tried to send some actual data
-            return
+            obs = self.send_buffer_size
+            bdata = buffer(data.encode(self.encoding), 0, obs)
+
+            try:
+                num_sent = self.send(bdata)
+            except socket.error:
+                self.handle_error()
+                return False
+
+            if num_sent and num_sent < len(bdata) or obs < len(data):
+                data = data[num_sent:]
+            else:
+                return True
 
     def discard_buffers(self):
         self._input_buffer = b('')
