@@ -434,6 +434,8 @@ class AsyncChat(Dispatcher):
     use_encoding = False
     encoding = 'utf-8'
 
+    _terminator = None
+
     def __init__(self, sock=None, map=None):
         # for string terminator matching
         self._input_buffer = ''
@@ -478,15 +480,12 @@ class AsyncChat(Dispatcher):
                 self._input_buffer = ''
             elif isinstance(terminator, (int, long)):
                 # numeric terminator
-                n = terminator
-                if lb < n:
+                if lb < terminator:
                     self.collect_incoming_data(self._input_buffer)
                     self._input_buffer = ''
-                    self.terminator -= self.terminator
                 else:
-                    self.collect_incoming_data(self._input_buffer[:n])
-                    self._input_buffer = self._input_buffer[n:]
-                    self.terminator = 0
+                    self.collect_incoming_data(self._input_buffer[:terminator])
+                    self._input_buffer = self._input_buffer[terminator:]
                     self.found_terminator()
             else:
                 # 3 cases:
