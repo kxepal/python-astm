@@ -8,9 +8,10 @@
 #
 
 from collections import Iterable
-from .compat import basestring
+from .compat import basestring, unicode
 from .constants import (
-    STX, ETX, CR, LF, CRLF, FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP
+    STX, ETX, ETB, CR, LF, CRLF,
+    FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP
 )
 
 
@@ -39,7 +40,7 @@ def decode(data):
     if data[0].isdigit(): # may be decode frame \d...
         seq, records = decode_frame(data)
         return records
-    return decode_record(data)
+    return [decode_record(data)]
 
 def decode_message(message):
     """Decodes complete ASTM message that is sended or received due
@@ -75,8 +76,10 @@ def decode_frame(frame):
     if not frame[0].isdigit():
         raise ValueError('Malformed ASTM frame. Expected leading seq number %r'
                          '' % frame)
-    if frame.endswith(CR + ETX):
-        frame = frame[:-2]
+    if not frame.endswith((CR + ETX, CR + ETB)):
+        raise ValueError('Incomplete frame data.'
+                         ' Expected trailing <CR><ETX> or <CR><ETB> chars')
+    frame = frame[:-2]
     seq, records = int(frame[0]), frame[1:]
     return seq, [decode_record(record) for record in records.split(RECORD_SEP)]
 

@@ -17,33 +17,34 @@ def f(s):
 
 class DecodeTestCase(unittest.TestCase):
 
-    def test_decode_abstract_record(self):
-        msg = 'A|B|C'
-        self.assertEqual(['A', 'B', 'C'], codec.decode(msg))
-
-    def test_astm_record(self):
-        msg = 'P|1|2776833|||ABC||||||||||||||||||||'
-        res = ['P', '1', '2776833', None, None, 'ABC'] + [None] * 20
-        self.assertEqual(res, codec.decode_record(msg))
+    def test_decode_message(self):
+        msg = f('{STX}1A|B|C|D{CR}{ETX}BF{CRLF}')
+        res = [['A', 'B', 'C', 'D']]
+        self.assertEqual(res, codec.decode(msg))
 
     def test_decode_frame(self):
-        msg = '1A|B|C'
-        self.assertEqual((1, [['A', 'B', 'C']]), codec.decode_frame(msg))
+        msg = f('1A|B|C|D{CR}{ETX}')
+        res = [['A', 'B', 'C', 'D']]
+        self.assertEqual(res, codec.decode(msg))
+
+    def test_decode_record(self):
+        msg = f('A|B|C|D')
+        res = [['A', 'B', 'C', 'D']]
+        self.assertEqual(res, codec.decode(msg))
+
+
+class DecodeMessageTestCase(unittest.TestCase):
 
     def test_decode_message(self):
         msg = f('{STX}1A|B|C|D{CR}{ETX}BF{CRLF}')
         res = (1, [['A', 'B', 'C', 'D']], 'BF')
         self.assertEqual(res, codec.decode_message(msg))
 
-    def test_decome_message_with_wrong_checksumm(self):
+    def test_fail_decome_message_with_wrong_checksumm(self):
         msg = f('{STX}1A|B|C|D{CR}{ETX}00{CRLF}')
         self.assertRaises(AssertionError, codec.decode_message, msg)
 
-    def test_decode_invalid_frame(self):
-        msg = 'A|B|C|D'
-        self.assertRaises(ValueError, codec.decode_frame, msg)
-
-    def test_decode_invalid_message(self):
+    def test_fail_decode_invalid_message(self):
         msg = 'A|B|C|D'
         self.assertRaises(ValueError, codec.decode_message, msg)
 
@@ -53,12 +54,35 @@ class DecodeTestCase(unittest.TestCase):
         msg = f('1A|B|C|D{CR}{ETX}BF{CRLF}')
         self.assertRaises(ValueError, codec.decode_message, msg)
 
-    def test_decode_record_with_components(self):
+
+class DecodeFrameTestCase(unittest.TestCase):
+
+    def test_fail_decode_without_tail_data(self):
+        msg = '1A|B|C'
+        self.assertRaises(ValueError, codec.decode_frame, msg)
+
+    def test_fail_decode_without_seq_value(self):
+        msg = f('A|B|C|D{CR}{ETX}')
+        self.assertRaises(ValueError, codec.decode_frame, msg)
+
+    def test_fail_decode_with_invalid_tail(self):
+        msg = f('1A|B|C{ETX}')
+        self.assertRaises(ValueError, codec.decode_frame, msg)
+
+
+class DecodeRecordTestCase(unittest.TestCase):
+
+    def test_decode(self):
+        msg = 'P|1|2776833|||ABC||||||||||||||||||||'
+        res = ['P', '1', '2776833', None, None, 'ABC'] + [None] * 20
+        self.assertEqual(res, codec.decode_record(msg))
+
+    def test_decode_with_components(self):
         msg = 'A|B^C^D^E|F'
         res = ['A', ['B', 'C', 'D', 'E'], 'F']
         self.assertEqual(res, codec.decode_record(msg))
 
-    def test_decode_record_with_repeated_components(self):
+    def test_decode_with_repeated_components(self):
         msg = 'A|B^C\D^E|F'
         res = ['A', [['B', 'C'], ['D', 'E']], 'F']
         self.assertEqual(res, codec.decode_record(msg))
@@ -70,6 +94,11 @@ class DecodeTestCase(unittest.TestCase):
 
         msg = 'A|B^^C^D^^E|F'
         res = ['A', ['B', None, 'C', 'D', None, 'E'], 'F']
+        self.assertEqual(res, codec.decode_record(msg))
+
+    def test_decode_nonascii_chars_as_unicode(self):
+        msg = 'привет|мир|!'
+        res = [u('привет'), u('мир'), '!']
         self.assertEqual(res, codec.decode_record(msg))
 
 
