@@ -10,6 +10,10 @@
 import unittest
 from astm import codec
 from astm.compat import u
+from astm.constants import STX, ETX, ETB, CR, LF, CRLF
+
+def f(s):
+    return s.format(STX=STX, ETX=ETX, ETB=ETB, CR=CR, LF=LF, CRLF=CRLF)
 
 class DecodeTestCase(unittest.TestCase):
 
@@ -27,12 +31,12 @@ class DecodeTestCase(unittest.TestCase):
         self.assertEqual((1, [['A', 'B', 'C']]), codec.decode_frame(msg))
 
     def test_decode_message(self):
-        msg = '\x021A|B|C|D\r\x03BF\r\n'
+        msg = f('{STX}1A|B|C|D{CR}{ETX}BF{CRLF}')
         res = (1, [['A', 'B', 'C', 'D']], 'BF')
         self.assertEqual(res, codec.decode_message(msg))
 
     def test_decome_message_with_wrong_checksumm(self):
-        msg = '\x021A|B|C|D\r\x0300\r\n'
+        msg = f('{STX}1A|B|C|D{CR}{ETX}00{CRLF}')
         self.assertRaises(AssertionError, codec.decode_message, msg)
 
     def test_decode_invalid_frame(self):
@@ -43,10 +47,10 @@ class DecodeTestCase(unittest.TestCase):
         msg = 'A|B|C|D'
         self.assertRaises(ValueError, codec.decode_message, msg)
 
-        msg = '\x021A|B|C|D\r\x03BF'
+        msg = f('{STX}1A|B|C|D{CR}{ETX}BF')
         self.assertRaises(ValueError, codec.decode_message, msg)
 
-        msg = '1A|B|C|D\r\x03BF\r\n'
+        msg = f('1A|B|C|D{CR}{ETX}BF{CRLF}')
         self.assertRaises(ValueError, codec.decode_message, msg)
 
     def test_decode_record_with_components(self):
@@ -72,7 +76,7 @@ class DecodeTestCase(unittest.TestCase):
 class EncodeTestCase(unittest.TestCase):
 
     def test_encode_message(self):
-        msg = '\x021A|B|C|D\r\x03BF\r\n'
+        msg = f('{STX}1A|B|C|D{CR}{ETX}BF{CRLF}')
         seq, data, cs = codec.decode_message(msg)
         self.assertEqual(msg, codec.encode_message(seq, data))
 
