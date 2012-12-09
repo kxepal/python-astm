@@ -146,7 +146,7 @@ def iter_encode(records):
     idx = 1
     for record in records:
         msg = encode_message(idx, [record])
-        if len(msg) > MAX_MESSAGE_SIZE:
+        if MAX_MESSAGE_SIZE is not None and len(msg) > MAX_MESSAGE_SIZE:
             for chunk in split(msg):
                 idx += 1
                 yield chunk

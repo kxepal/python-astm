@@ -104,6 +104,11 @@ class DecodeRecordTestCase(unittest.TestCase):
 
 class EncodeTestCase(unittest.TestCase):
 
+    def test_encode(self):
+        msg = f('{STX}1A|B|C|D{CR}{ETX}BF{CRLF}')
+        seq, data, cs = codec.decode_message(msg)
+        self.assertEqual([msg], codec.encode(data))
+
     def test_encode_message(self):
         msg = f('{STX}1A|B|C|D{CR}{ETX}BF{CRLF}')
         seq, data, cs = codec.decode_message(msg)
@@ -135,6 +140,13 @@ class EncodeTestCase(unittest.TestCase):
 
     def test_count_none_fields_as_empty_strings(self):
         self.assertEqual('|B|', codec.encode_record([None,'B', None]))
+
+    def test_iter_encoding(self):
+        records = [['foo', 1], ['bar', 2], ['baz', 3]]
+        res = [f('{STX}1foo|1{CR}{ETX}32{CRLF}'),
+               f('{STX}2bar|2{CR}{ETX}25{CRLF}'),
+               f('{STX}3baz|3{CR}{ETX}2F{CRLF}')]
+        self.assertEqual(res, list(codec.iter_encode(records)))
 
 
 class ChunkedEncodingTestCase(unittest.TestCase):
