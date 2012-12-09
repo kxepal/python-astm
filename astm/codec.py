@@ -13,7 +13,14 @@ from .constants import (
     STX, ETX, ETB, CR, LF, CRLF,
     FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP
 )
+try:
+    from itertools import izip_longest
+except ImportError: # Python 3
+    from itertools import zip_longest as izip_longest
 
+#: Maximum message size before it will be split by chunks.
+#: If is `None` encoded message will be never split.
+MAX_MESSAGE_SIZE = None
 
 def decode(data):
     """Common ASTM decoding function that tries to guess which kind of data it
@@ -76,10 +83,14 @@ def decode_frame(frame):
     if not frame[0].isdigit():
         raise ValueError('Malformed ASTM frame. Expected leading seq number %r'
                          '' % frame)
-    if not frame.endswith((CR + ETX, CR + ETB)):
+    if frame.endswith((CR + ETX, ETB)):
+        frame = frame[:-2]
+    elif frame.endswith(ETB):
+        frame = frame[:-1]
+    else:
         raise ValueError('Incomplete frame data.'
-                         ' Expected trailing <CR><ETX> or <CR><ETB> chars')
-    frame = frame[:-2]
+                         ' Expected trailing <CR><ETX> or <ETB> chars')
+
     seq, records = int(frame[0]), frame[1:]
     return seq, [decode_record(record) for record in records.split(RECORD_SEP)]
 
@@ -103,25 +114,45 @@ def decode_repeated_component(component):
     return [decode_component(item) for item in component.split(REPEAT_SEP)]
 
 def encode(records):
-    """Encodes list of records into single ASTM message.
+    """Encodes list of records into single ASTM message, also called as "packed"
+    message.
+
     If you need to get each record as standalone message use :func:`iter_encode`
     instead.
+
+    If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
+    than it will be splitted by chunks.
 
     :param records: List of ASTM records.
     :type records: list
 
-    :return: ASTM complete message with checksum and other control characters.
-    :rtype: str
+    :return: List of ASTM message chunks.
+    :rtype: list
     """
-    return encode_message(1, records)
+    msg = encode_message(1, records)
+    if MAX_MESSAGE_SIZE is not None and len(msg[1:-5]) > MAX_MESSAGE_SIZE:
+        return list(split(msg))
+    return [msg]
 
 def iter_encode(records):
-    """Emits sequential ASTM messages for single package.
+    """Encodes and emits each record as separate message.
 
-    :yields: ASTM complete message with
+    If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
+    than it will be splitted by chunks.
+
+    :yields: ASTM message chunks.
+    :rtype: str
     """
-    for idx, record in enumerate(records):
-        yield encode_message(idx + 1, [record])
+    idx = 1
+    for record in records:
+        msg = encode_message(idx, [record])
+        if len(msg) > MAX_MESSAGE_SIZE:
+            for chunk in split(msg):
+                idx += 1
+                yield chunk
+        else:
+            idx += 1
+            yield msg
 
 def encode_message(seq, records):
     """Encodes ASTM message.
@@ -192,4 +223,34 @@ def make_checksum(message):
     :returns: Checksum value that is actually byte sized integer in hex base
     :rtype: str
     """
-    return hex(sum(ord(i) for i in message) & 0xFF)[2:].upper().zfill(2)
+    return hex(sum(ord(c) for c in message) & 0xFF)[2:].upper().zfill(2)
+
+def make_chunks(s, n):
+    return [''.join(item) for item in izip_longest(*[iter(s)]*n, fillvalue='')]
+
+def split(msg, size=None):
+    stx, frame, msg, tail = msg[0], msg[1], msg[2:-6], msg[-6:]
+    assert stx == STX
+    assert frame.isdigit()
+    assert tail.endswith(CRLF)
+    frame = int(frame)
+    chunks = make_chunks(msg, size or MAX_MESSAGE_SIZE)
+    chunks, last = chunks[:-1], chunks[-1]
+    idx = 0
+    for idx, chunk in enumerate(chunks):
+        item = ''.join([str(idx + frame), chunk, ETB])
+        yield ''.join([STX, item, make_checksum(item), CRLF])
+    item = ''.join([str(idx + frame + 1), last, CR, ETX])
+    yield ''.join([STX, item, make_checksum(item), CRLF])
+
+def join(chunks):
+    chunks = list(chunks)
+    chunks, last = chunks[:-1], chunks[-1]
+    msg = '1' + ''.join(c[2:-5] for c in chunks) + last[2:-4]
+    return ''.join([STX, msg, make_checksum(msg), CRLF])
+
+def is_complete_message(msg):
+    return msg[-5] == ETB
+
+def is_chunked_message(msg):
+    return msg[-5] == ETX

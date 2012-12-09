@@ -97,7 +97,7 @@ class DecodeRecordTestCase(unittest.TestCase):
         self.assertEqual(res, codec.decode_record(msg))
 
     def test_decode_nonascii_chars_as_unicode(self):
-        msg = 'привет|мир|!'
+        msg = u('привет|мир|!')
         res = [u('привет'), u('мир'), '!']
         self.assertEqual(res, codec.decode_record(msg))
 
@@ -109,17 +109,75 @@ class EncodeTestCase(unittest.TestCase):
         seq, data, cs = codec.decode_message(msg)
         self.assertEqual(msg, codec.encode_message(seq, data))
 
-    def test_encode_component_strip_tail(self):
-        msg = ['A', 'B', '', '', '']
-        res = 'A^B'
-        self.assertEqual(res, codec.encode_component(msg))
-
     def test_encode_record(self):
         msg = 'A|B^C\D^E|F^G|H'
         self.assertEqual(msg, codec.encode_record(codec.decode_record(msg)))
 
+    def test_encode_record_with_none_and_non_string(self):
+        msg = ['foo', None, 0]
+        res = 'foo||0'
+        self.assertEqual(res, codec.encode_record(msg))
+
+    def test_encode_component(self):
+        msg = ['foo', None, 0]
+        res = 'foo^^0'
+        self.assertEqual(res, codec.encode_component(msg))
+
+    def test_encode_component_strip_tail(self):
+        msg = ['A', 'B', '', None, '']
+        res = 'A^B'
+        self.assertEqual(res, codec.encode_component(msg))
+
+    def test_encode_repeated_component(self):
+        msg = [['foo', 1], ['bar', 2], ['baz', 3]]
+        res = 'foo^1\\bar^2\\baz^3'
+        self.assertEqual(res, codec.encode_repeated_component(msg))
+
     def test_count_none_fields_as_empty_strings(self):
         self.assertEqual('|B|', codec.encode_record([None,'B', None]))
+
+
+class ChunkedEncodingTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self._size = codec.MAX_MESSAGE_SIZE
+        codec.MAX_MESSAGE_SIZE = 3
+
+    def tearDown(self):
+        codec.MAX_MESSAGE_SIZE = self._size
+
+    def test_encode_chunky(self):
+        codec.MAX_MESSAGE_SIZE = 4
+        recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
+        res = codec.encode(recs)
+        self.assertTrue(isinstance(res, list))
+        self.assertEqual(len(res), 7)
+
+        self.assertEqual(res[0], f('{STX}1foo|{ETB}08{CRLF}'))
+        self.assertEqual(res[1], f('{STX}21{CR}ba{ETB}4A{CRLF}'))
+        self.assertEqual(res[2], f('{STX}3r|24{ETB}9E{CRLF}'))
+        self.assertEqual(res[3], f('{STX}4{CR}baz{ETB}95{CRLF}'))
+        self.assertEqual(res[4], f('{STX}5|1^2{ETB}89{CRLF}'))
+        self.assertEqual(res[5], f('{STX}6^3|b{ETB}BC{CRLF}'))
+        self.assertEqual(res[6], f('{STX}7oo{CR}{ETX}25{CRLF}'))
+
+    def test_decode_chunks(self):
+        codec.MAX_MESSAGE_SIZE = 4
+        recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
+        res = codec.encode(recs)
+        for item in res:
+            codec.decode(item)
+
+    def test_join_chunks(self):
+        codec.MAX_MESSAGE_SIZE = 4
+        recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
+        chunks = codec.encode(recs)
+        msg = codec.join(chunks)
+        codec.decode(msg)
+
+    def test_encode_as_single_message(self):
+        res = codec.encode_message(2, [['A', 0]])
+        self.assertEqual(f('{STX}2A|0{CR}{ETX}2F{CRLF}'), res)
 
 
 class ChecksummTestCase(unittest.TestCase):
