@@ -2,5 +2,5 @@
 ASTM message decoding and encoding
 ==================================
 
-.. automodule:: astm
+.. automodule:: astm.codec
    :members:
