@@ -731,7 +731,10 @@ class AsyncChat(Dispatcher):
 
     def writable(self):
         """Predicate for inclusion in the writable for select()"""
-        return bool(self.outbox and self.connected)
+        # For nonblocking sockets connect() will not set self.connected flag,
+        # due to EINPROGRESS socket error which is actually promise for
+        # successful connection.
+        return bool(self.outbox or self.connected)
 
     def close_when_done(self):
         """Automatically close this channel once the outgoing queue is empty."""
