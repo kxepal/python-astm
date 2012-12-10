@@ -590,6 +590,9 @@ class AsyncChat(Dispatcher):
     #: Default encoding.
     encoding = 'utf-8'
 
+    #: Remove terminator from the result data.
+    strip_terminator = True
+
     _terminator = None
 
     def __init__(self, sock=None, map=None):
@@ -657,52 +660,77 @@ class AsyncChat(Dispatcher):
         self._input_buffer += data
 
         while self._input_buffer:
-            lb = len(self._input_buffer)
             terminator = self.terminator
             if not terminator:
-                # no terminator, collect it all
+                handler = self._lookup_none_terminator
+            elif isinstance(terminator, (int, long)):
+                handler = self._lookup_int_terminator
+            elif isinstance(terminator, str):
+                handler = self._lookup_str_terminator
+            else:
+                handler = self._lookup_list_terminator
+            res = handler(self.terminator)
+            if res is None:
+                break
+
+    def _lookup_none_terminator(self, terminator):
+        self.pull(self._input_buffer)
+        self._input_buffer = ''
+        return False
+
+    def _lookup_int_terminator(self, terminator):
+        if len(self._input_buffer) < terminator:
+            self.pull(self._input_buffer)
+            self._input_buffer = ''
+            return False
+        else:
+            self.pull(self._input_buffer[:terminator])
+            self._input_buffer = self._input_buffer[terminator:]
+            self.found_terminator()
+            return True
+
+    def _lookup_list_terminator(self, terminator):
+        for item in terminator:
+            if self._input_buffer.find(item) != -1:
+                return self._lookup_str_terminator(item)
+        return self._lookup_none_terminator(terminator)
+
+    def _lookup_str_terminator(self, terminator):
+        # 3 cases:
+        # 1) end of buffer matches terminator exactly:
+        #    collect data, transition
+        # 2) end of buffer matches some prefix:
+        #    collect data to the prefix
+        # 3) end of buffer does not match any prefix:
+        #    collect data
+        terminator_len = len(terminator)
+        index = self._input_buffer.find(terminator)
+        if index != -1:
+            # we found the terminator
+            if self.strip_terminator and index > 0:
+                self.pull(self._input_buffer[:index])
+            elif not self.strip_terminator:
+                self.pull(self._input_buffer[:index+terminator_len])
+            self._input_buffer = self._input_buffer[index+terminator_len:]
+            log.info('flag: %r, index: %r, buffer: %r', self.strip_terminator, index, self._input_buffer)
+            log.info('inbox: %r', self.inbox)
+            # This does the Right Thing if the terminator is changed here.
+            self.found_terminator()
+            return True
+        else:
+            # check for a prefix of the terminator
+            index = find_prefix_at_end(self._input_buffer, terminator)
+            if index:
+                if index != len(self._input_buffer):
+                    # we found a prefix, collect up to the prefix
+                    self.pull(self._input_buffer[:-index])
+                    self._input_buffer = self._input_buffer[-index:]
+                return None
+            else:
+                # no prefix, collect it all
                 self.pull(self._input_buffer)
                 self._input_buffer = ''
-            elif isinstance(terminator, (int, long)):
-                # numeric terminator
-                if lb < terminator:
-                    self.pull(self._input_buffer)
-                    self._input_buffer = ''
-                else:
-                    self.pull(self._input_buffer[:terminator])
-                    self._input_buffer = self._input_buffer[terminator:]
-                    self.found_terminator()
-            else:
-                # 3 cases:
-                # 1) end of buffer matches terminator exactly:
-                #    collect data, transition
-                # 2) end of buffer matches some prefix:
-                #    collect data to the prefix
-                # 3) end of buffer does not match any prefix:
-                #    collect data
-                terminator_len = len(terminator)
-                index = self._input_buffer.find(terminator)
-                if index != -1:
-                    # we found the terminator
-                    if index > 0:
-                        # don't bother reporting the empty string (source of subtle bugs)
-                        self.pull(self._input_buffer[:index])
-                    self._input_buffer = self._input_buffer[index+terminator_len:]
-                    # This does the Right Thing if the terminator is changed here.
-                    self.found_terminator()
-                else:
-                    # check for a prefix of the terminator
-                    index = find_prefix_at_end(self._input_buffer, terminator)
-                    if index:
-                        if index != lb:
-                            # we found a prefix, collect up to the prefix
-                            self.pull(self._input_buffer[:-index])
-                            self._input_buffer = self._input_buffer[-index:]
-                        break
-                    else:
-                        # no prefix, collect it all
-                        self.pull(self._input_buffer)
-                        self._input_buffer = ''
+                return False
 
     def handle_write(self):
         self.flush()
