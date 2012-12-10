@@ -391,6 +391,7 @@ class Dispatcher(object):
     def send(self, data):
         """Send `data` to the remote end-point of the socket."""
         try:
+            log.debug('<<< %r', data)
             result = self.socket.send(data)
             return result
         except socket.error as err:
@@ -410,6 +411,7 @@ class Dispatcher(object):
         """
         try:
             data = self.socket.recv(buffer_size)
+            log.debug('>>> %r', data)
             if not data:
                 # a closed connection is indicated by signaling
                 # a read condition, and having recv() return 0.
@@ -650,7 +652,6 @@ class AsyncChat(Dispatcher):
     def handle_read(self):
         try:
             data = self.recv(self.recv_buffer_size)
-            log.debug('>>> %r', data)
         except socket.error as err:
             self.handle_error()
             return
@@ -789,7 +790,6 @@ class AsyncChat(Dispatcher):
             bdata = buffer(data.encode(self.encoding), 0, obs)
 
             try:
-                log.debug('<<< %r', bdata)
                 num_sent = self.send(bdata)
             except socket.error:
                 self.handle_error()
