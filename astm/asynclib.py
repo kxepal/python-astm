@@ -650,6 +650,7 @@ class AsyncChat(Dispatcher):
     def handle_read(self):
         try:
             data = self.recv(self.recv_buffer_size)
+            log.debug('>>> %r', data)
         except socket.error as err:
             self.handle_error()
             return
@@ -788,6 +789,7 @@ class AsyncChat(Dispatcher):
             bdata = buffer(data.encode(self.encoding), 0, obs)
 
             try:
+                log.debug('<<< %r', bdata)
                 num_sent = self.send(bdata)
             except socket.error:
                 self.handle_error()
