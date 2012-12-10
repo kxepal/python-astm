@@ -714,8 +714,6 @@ class AsyncChat(Dispatcher):
             elif not self.strip_terminator:
                 self.pull(self._input_buffer[:index+terminator_len])
             self._input_buffer = self._input_buffer[index+terminator_len:]
-            log.info('flag: %r, index: %r, buffer: %r', self.strip_terminator, index, self._input_buffer)
-            log.info('inbox: %r', self.inbox)
             # This does the Right Thing if the terminator is changed here.
             self.found_terminator()
             return True
