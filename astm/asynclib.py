@@ -763,7 +763,7 @@ class AsyncChat(Dispatcher):
         # For nonblocking sockets connect() will not set self.connected flag,
         # due to EINPROGRESS socket error which is actually promise for
         # successful connection.
-        return bool(self.outbox or self.connected)
+        return bool(self.outbox or not self.connected)
 
     def close_when_done(self):
         """Automatically close this channel once the outgoing queue is empty."""
