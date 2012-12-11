@@ -14,6 +14,8 @@ Contents:
 
    codecs
    mapping
+   asynclib
+   protocol
    licence
 
 
