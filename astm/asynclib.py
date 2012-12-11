@@ -590,7 +590,7 @@ class AsyncChat(Dispatcher):
     #: sign of an application bug that we don't want to pass silently.
     use_encoding = False
     #: Default encoding.
-    encoding = 'utf-8'
+    encoding = 'latin-1'
 
     #: Remove terminator from the result data.
     strip_terminator = True
