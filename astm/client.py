@@ -55,7 +55,7 @@ class Client(ASTMProtocol):
         raise ValueError('Client should not receive ENQ.')
 
     def on_ack(self):
-        if self.state in [STATE.opened, STATE.transfer]:
+        if self.state not in [STATE.opened, STATE.transfer]:
             raise InvalidState('Client is not ready to accept ACK.')
         self._retry_attempts = 3
         if self.state == STATE.opened:
