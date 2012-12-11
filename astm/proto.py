@@ -28,7 +28,8 @@ class ASTMProtocol(AsyncChat):
     is_chunked_transfer = None
 
     strip_terminator = False
-    _last_message = None
+    _last_recv_data = None
+    _last_sent_data = None
     _state = None
 
     def found_terminator(self):
@@ -40,7 +41,7 @@ class ASTMProtocol(AsyncChat):
 
     def dispatch(self, data):
         """Dispatcher of received data."""
-        self._last_message = data
+        self._last_recv_data = data
         if data == ENQ:
             handler = self.on_enq
         elif data == ACK:
@@ -58,6 +59,10 @@ class ASTMProtocol(AsyncChat):
 
         if resp is not None:
             self.push(resp)
+
+    def push(self, data):
+        self._last_sent_data = data
+        return super(ASTMProtocol, self).push(data)
 
     def on_enq(self):
         """Calls on ``ENQ`` message receiving."""
