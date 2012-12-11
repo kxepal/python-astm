@@ -11,7 +11,7 @@ import logging
 from collections import namedtuple
 from .asynclib import AsyncChat
 from .records import HeaderRecord, TerminatorRecord
-from .constants import STX, CRLF, ENQ, ACK, NAK, EOT
+from .constants import STX, CRLF, ENQ, ACK, NAK, EOT, ENCODING
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +27,8 @@ class ASTMProtocol(AsyncChat):
     #: Flag about chunked transfer.
     is_chunked_transfer = None
 
+    use_encoding = True
+    encoding = ENCODING
     strip_terminator = False
     _last_recv_data = None
     _last_sent_data = None
