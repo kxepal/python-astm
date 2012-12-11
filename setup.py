@@ -37,7 +37,7 @@ except ImportError:
 
 setup(
     name = 'astm',
-    version = '0.1',
+    version = '0.2',
     description = 'Python implementation of ASTM E1381/1394-91 protocol.',
 
     author = 'Alexander Shorin',
