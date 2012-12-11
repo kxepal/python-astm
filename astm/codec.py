@@ -249,8 +249,6 @@ def join(chunks):
     msg = '1' + ''.join(c[2:-5] for c in chunks) + last[2:-4]
     return ''.join([STX, msg, make_checksum(msg), CRLF])
 
-def is_complete_message(msg):
-    return msg[-5] == ETB
-
-def is_chunked_message(msg):
-    return msg[-5] == ETX
+def is_chunked_message(message):
+    """Checks plain message for chunked byte."""
+    return message[-5] == ETB

@@ -191,6 +191,13 @@ class ChunkedEncodingTestCase(unittest.TestCase):
         res = codec.encode_message(2, [['A', 0]])
         self.assertEqual(f('{STX}2A|0{CR}{ETX}2F{CRLF}'), res)
 
+    def test_is_chunked_message(self):
+        msg = f('{STX}2A|0{CR}{ETB}2F{CRLF}')
+        self.assertTrue(codec.is_chunked_message(msg))
+
+        msg = f('{STX}2A|0{CR}{ETX}2F{CRLF}')
+        self.assertFalse(codec.is_chunked_message(msg))
+
 
 class ChecksummTestCase(unittest.TestCase):
 
