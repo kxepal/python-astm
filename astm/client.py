@@ -7,59 +7,116 @@
 # you should have received as part of this distribution.
 #
 
-import asyncore
 import logging
 import socket
-from collections import deque
-from . import Record
-from .codec import encode_record
-from .constants import ACK
+import time
+from .codec import encode_message
+from .constants import ENQ, EOT
+from .exceptions import InvalidState, NotAccepted, Rejected
+from .mapping import Record
+from .proto import ASTMProtocol, STATE
+
 
 log = logging.getLogger(__name__)
 
-#: Maximum message length. Normally, one record are not bigger than 250 chars,
-#: so default value is about 10 very long records.
-MAX_MESSAGE_LENGTH = 8192
 
-class Client(asyncore.dispatcher):
-    """Base asyncore driven ASTM client."""
+class Client(ASTMProtocol):
+    """Common ASTM client implementation."""
 
-    def __init__(self, host='localhost', port=15200):
-        asyncore.dispatcher.__init__(self)
+    def __init__(self, emitter, host='localhost', port=15200):
+        super(Client, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
-        self.log = logging.getLogger(__name__ + '.client')
-        self.outbox = deque()
+        self.emitter = emitter()
+        self.set_init_state()
 
-    def handle_connect(self):
-        pass
+    def emit_header(self):
+        """Returns Header record."""
+        return self.astm_header()
 
-    def handle_close(self):
-        self.close()
+    def emit_terminator(self):
+        """Returns Terminator record."""
+        return self.astm_terminator()
 
-    def handle_read(self):
-        data = self.recv(1)
-        self.log.debug('<<< %r', data)
-        if not data:
-            return
+    def retry_push_or_fail(self, data, attempts=3):
+        """Sends `data` to server. If server rejects data due to some reasons
+        (with ``<NAK>`` reply) client tries to resend data for specified number
+        of `attempts`. If no attempts left, `Rejected` error raised."""
+        if not attempts:
+            raise Rejected('Server refused to accept data: %r', data)
+        self.push(data)
 
-        if data != ACK:
-            self.log.warning('Unexpected response %r', data)
+    def set_transfer_state(self):
+        self.terminator = 1
+        self.state = STATE.transfer
+        self.on_transfer_state()
 
-    def handle_write(self):
-        if not self.outbox:
-            return
+    def on_enq(self):
+        raise ValueError('Client should not receive ENQ.')
 
-        message = self.outbox.popleft()
+    def on_ack(self):
+        if self.state in [STATE.opened, STATE.transfer]:
+            raise InvalidState('Client is not ready to accept ACK.')
+        self._retry_attempts = 3
+        if self.state == STATE.opened:
+            self.set_transfer_state()
+            for record in self.emitter:
+                break
+            else:
+                self.on_termination()
+                return
+        elif self.state == STATE.transfer:
+            try:
+                record = self.emitter.send(True)
+            except StopIteration:
+                self.on_termination()
+                return
+        state = self._transfer_state
+        self._last_seq += 1
+        mtype = record[0]
+        if state is None:
+            assert mtype == 'H', mtype
+            state = 'header'
+        elif state == 'header':
+            assert mtype in ['P', 'L']
+            if mtype == 'P':
+                state = 'patient'
+        elif state == 'patient':
+            assert mtype in ['P', 'O', 'C', 'L']
+            if mtype == 'O':
+                state = 'order'
+        elif state == 'order':
+            assert mtype in ['O', 'C', 'M', 'R', 'L']
+            if mtype == 'R':
+                state = 'result'
+        elif state == 'result':
+            assert mtype in ['R', 'C', 'L']
+        if isinstance(record, Record):
+            record = record.to_astm()
+        if mtype == 'L':
+            state = None
+        data = encode_message(self._last_seq, [record])
+        self._last_sent_data = data
+        self.push(data)
+        self._transfer_state = state
 
-        if len(message) > MAX_MESSAGE_LENGTH:
-            raise ValueError('Message too long: %d bytes, maximum is: %d'
-                             '' % (len(message), MAX_MESSAGE_LENGTH))
+    def on_nak(self):
+        self._retry_attempts -= 1
+        self.retry_push_or_fail(self._last_sent_data, self._retry_attempts)
 
-        self.log.debug('>>> %r', message)
-        self.send(message)
+    def on_eot(self):
+        raise NotAccepted('Client should not receive EOT.')
 
-    def send_async(self, data):
-        if isinstance(data, Record):
-            data = encode_record(data.to_astm_record())
-        self.outbox.append(data)
+    def on_message(self):
+        raise NotAccepted('Client should not receive ASTM message.')
+
+    def on_init_state(self):
+        self._last_seq = 0
+        self._transfer_state = None
+        self.push(ENQ)
+        self.set_opened_state()
+
+    def on_termination(self):
+        self.push(EOT)
+        time.sleep(5)
+        self.set_init_state()
