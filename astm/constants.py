@@ -7,6 +7,8 @@
 # you should have received as part of this distribution.
 #
 
+ENCODING = 'utf-8'
+
 STX = '\x02'
 ETX = '\x03'
 EOT = '\x04'
