@@ -52,7 +52,7 @@ class Client(ASTMProtocol):
         self.on_transfer_state()
 
     def on_enq(self):
-        raise ValueError('Client should not receive ENQ.')
+        raise NotAccepted('Client should not receive ENQ.')
 
     def on_ack(self):
         if self.state not in [STATE.opened, STATE.transfer]:
