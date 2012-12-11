@@ -1,0 +1,18 @@
+
+Release 0.2 (2012-12-11)
+------------------------
+
+- Fork, mix and refactor asyncore/asynchat modules to astm.asynclib module which
+  provides more suitable methods to implement asynchronous operations for our
+  task;
+- Implement ASTM client and server that handles common protocol routines.
+
+
+Release 0.1 (2012-12-09)
+------------------------
+
+- Base decode/encode functions for ASTM data format;
+- Small object model mapping based on couchdb-python solution that helps to
+  design records as classes, access to fields by name alias and provide
+  autoconversion between Python objects and ASTM raw values;
+- Add demo support of OmniLab LabOnline product.

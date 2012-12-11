@@ -16,6 +16,7 @@ Contents:
    mapping
    asynclib
    protocol
+   changes
    licence
 
 
