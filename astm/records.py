@@ -96,7 +96,7 @@ OrderRecord = Record.build(
     NotUsedField(name='danger_code'),
     NotUsedField(name='clinical_info'),
     NotUsedField(name='delivered_at'),
-    NotUsedField(name='specimen_descriptor'),
+    NotUsedField(name='biomaterial'),
     NotUsedField(name='physician'),
     NotUsedField(name='physician_phone'),
     NotUsedField(name='user_field_1'),
@@ -135,7 +135,7 @@ CommentRecord = Record.build(
     ConstantField(name='type', default='C'),
     IntegerField(name='seq', default=1, required=True),
     NotUsedField(name='source'),
-    NotUsedField(name='text'),
+    NotUsedField(name='data'),
     NotUsedField(name='ctype')
 )
 
