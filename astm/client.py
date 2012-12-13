@@ -96,7 +96,6 @@ class Client(ASTMProtocol):
         if mtype == 'L':
             state = None
         data = encode_message(self._last_seq, [record])
-        self._last_sent_data = data
         self.push(data)
         self._transfer_state = state
 
