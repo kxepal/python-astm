@@ -12,8 +12,24 @@ from astm import constants
 from astm.tests.utils import DummyMixIn, track_call
 from astm import proto
 
+class DummyTimer(object):
+    def __init__(self, timeout, callback):
+        self.timeout = timeout
+        self.callback = callback
+        self._alive = False
+
+    def is_alive(self):
+        return self._alive
+
+    def start(self):
+        self._alive = True
+
+    def cancel(self):
+        self._alive = False
+
+
 class DummyProto(DummyMixIn, proto.ASTMProtocol):
-    pass
+    _timer_cls = DummyTimer
 
 
 class DispatcherTestCase(unittest.TestCase):
@@ -117,6 +133,44 @@ class StateTestCase(unittest.TestCase):
         obj.on_transfer_state = track_call(obj.on_transfer_state)
         obj.set_transfer_state()
         self.assertTrue(obj.on_transfer_state.was_called)
+
+
+class TimeoutTestCase(unittest.TestCase):
+
+    def test_default_timeout(self):
+        obj = DummyProto()
+        assert obj.timeout is None
+
+    def test_dont_start_timer_if_no_timeout(self):
+        obj = DummyProto()
+        obj.start_timer()
+        assert obj._timer is None
+
+    def test_dont_stor_timer_if_no_timeout(self):
+        obj = DummyProto()
+        obj.stop_timer()
+        assert obj._timer is None
+
+    def test_start_timer(self):
+        obj = DummyProto()
+        obj.timeout = 1
+        obj.start_timer()
+        assert obj._timer.is_alive()
+
+    def test_stop_timer(self):
+        obj = DummyProto()
+        obj.timeout = 1
+        obj.start_timer()
+        obj.stop_timer()
+        assert obj._timer is None
+
+    def test_on_timeout(self):
+        obj = DummyProto()
+        obj.on_timeout = track_call(obj.on_timeout)
+        obj.timeout = 1
+        obj.start_timer()
+        obj._timer.callback()
+        self.assertTrue(obj.on_timeout.was_called)
 
 
 if __name__ == '__main__':
