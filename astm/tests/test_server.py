@@ -17,6 +17,8 @@ from astm.tests.utils import DummyMixIn, track_call
 
 
 class DummyRequestHandler(DummyMixIn, RequestHandler):
+    dummy_dispatcher_called_time = 0
+
     def __init__(self):
         RequestHandler.__init__(self, 'localhost', 15200, None)
 
@@ -25,6 +27,16 @@ class DummyRequestHandler(DummyMixIn, RequestHandler):
 
     def process_message_chunk(self, seq, records, cs):
         pass
+
+    def default_handler(self, data):
+        return constants.NAK
+
+    def dispatch(self, data):
+        self.dummy_dispatcher_called_time += 1
+        return super(DummyRequestHandler, self).dispatch(data)
+
+    def recv(self, size):
+        return codec.encode([records.HeaderRecord().to_astm()])[0]
 
 
 class RequestHandlerTestCase(unittest.TestCase):
@@ -99,6 +111,14 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertTrue(self.req.process_message.was_called)
         self.assertFalse(self.req.process_message_chunk.was_called)
         self.assertFalse(self.req.chunks)
+
+    def test_cleanup_input_buffer_on_message_reject(self):
+        self.req.state = proto.STATE.init
+        self.req.handle_read()
+        self.assertEqual(self.req.dummy_dispatcher_called_time, 1)
+        self.assertEqual(self.req.outbox[-1], constants.NAK)
+        self.assertEqual(self.req._input_buffer, '')
+
 
 
 if __name__ == '__main__':

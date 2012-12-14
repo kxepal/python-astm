@@ -54,6 +54,7 @@ class RequestHandler(ASTMProtocol):
 
     def on_message(self):
         if self.state != STATE.transfer:
+            self.discard_input_buffers()
             return NAK
         else:
             try:
