@@ -173,3 +173,11 @@ class ASTMProtocol(AsyncChat):
 
     def on_timeout(self):
         """Calls when timeout occurs for send/recv operations."""
+
+    def discard_input_buffer(self):
+        self._last_recv_message = None
+        return super(ASTMProtocol, self).discard_input_buffer()
+
+    def discard_output_buffer(self):
+        self._last_sent_message = None
+        return super(ASTMProtocol, self).discard_output_buffer()
