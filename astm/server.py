@@ -41,7 +41,7 @@ class RequestHandler(ASTMProtocol):
 
     def on_eot(self):
         if self.state != STATE.transfer:
-            raise InvalidState('Unexpectable EOT message.')
+            raise InvalidState('Server is not ready to accept EOT message.')
         self.set_init_state()
 
     def on_message(self):
@@ -64,6 +64,7 @@ class RequestHandler(ASTMProtocol):
         elif self.chunks:
             self.chunks.append(message)
             self.process_message(*decode_message(join(self.chunks)))
+            self.chunks = []
         else:
             self.process_message(*decode_message(message))
 
