@@ -21,7 +21,24 @@ log = logging.getLogger(__name__)
 
 
 class Client(ASTMProtocol):
-    """Common ASTM client implementation."""
+    """Common ASTM client implementation.
+
+    :param emitter: Generator function that will produce ASTM records.
+    :type emitter: function
+
+    :param host: Server IP address or hostname.
+    :type host: str
+
+    :param port: Server port number.
+    :type port: int
+
+    :param serve_forever: Start over emitter after transfer termination.
+    :type serve_forever: bool
+
+    :param state_reset_timeout: Time between switching from transfer
+                                termination state to initialization.
+    :type state_reset_timeout: bool
+    """
 
     #: Number or attempts to send record to server.
     retry_attempts = 3 # actually useless thing, but specification requires it.
