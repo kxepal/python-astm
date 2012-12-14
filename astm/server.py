@@ -18,8 +18,16 @@ from .proto import ASTMProtocol, STATE
 log = logging.getLogger(__name__)
 
 class RequestHandler(ASTMProtocol):
-    """ASTM protocol request handler."""
+    """ASTM protocol request handler.
 
+    :param host: Client IP address or hostname.
+    :type host: str
+
+    :param port: Client port number.
+    :type port: int
+
+    :param sock: Socket object.
+    """
     def __init__(self, host, port, sock):
         super(RequestHandler, self).__init__(sock)
         self.set_init_state()
@@ -103,8 +111,17 @@ class RequestHandler(ASTMProtocol):
 
 
 class Server(Dispatcher):
-    """Asyncore driven ASTM server."""
+    """Asyncore driven ASTM server.
 
+    :param host: Server IP address or hostname.
+    :type host: str
+
+    :param port: Server port number.
+    :type port: int
+
+    :param request: Server request handler.
+    :type request: :class:`RequestHandler`
+    """
     def __init__(self, host='localhost', port=15200, request=RequestHandler):
         super(Server, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
