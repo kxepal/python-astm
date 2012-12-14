@@ -55,12 +55,15 @@ class ASTMProtocol(AsyncChat):
         elif data.startswith(STX): # this looks like a message
             handler = self.on_message
         else:
-            raise ValueError('Unable to dispatch data: %r', data)
+            handler = lambda: self.default_handler(data)
 
         resp = handler()
 
         if resp is not None:
             self.push(resp)
+
+    def default_handler(self, data):
+        raise ValueError('Unable to dispatch data: %r', data)
 
     def push(self, data):
         self._last_sent_data = data
@@ -105,6 +108,7 @@ class ASTMProtocol(AsyncChat):
         self.terminator = 1
         self.state = STATE.init
         self.on_init_state()
+        log.info('Switched to init state')
 
     def set_opened_state(self):
         """Sets handler state to OPENED (1).
@@ -116,6 +120,7 @@ class ASTMProtocol(AsyncChat):
         self.terminator = 1
         self.state = STATE.opened
         self.on_opened_state()
+        log.info('Switched to opened state')
 
     def set_transfer_state(self):
         """Sets handler state to TRANSFER (2).
@@ -127,6 +132,7 @@ class ASTMProtocol(AsyncChat):
         self.terminator = [CRLF, EOT]
         self.state = STATE.transfer
         self.on_transfer_state()
+        log.info('Switched to transfer state')
 
     def on_init_state(self):
         """Calls on set state INIT (0)"""
