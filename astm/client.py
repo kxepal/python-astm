@@ -23,11 +23,18 @@ log = logging.getLogger(__name__)
 class Client(ASTMProtocol):
     """Common ASTM client implementation."""
 
-    def __init__(self, emitter, host='localhost', port=15200):
+    #: Number or attempts to send record to server.
+    retry_attempts = 3 # actually useless thing, but specification requires it.
+
+    def __init__(self, emitter, host='localhost', port=15200,
+                 serve_forever=False, state_reset_timeout=20):
         super(Client, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
-        self.emitter = emitter()
+        self._emitter = emitter
+        self._retry_attempts = self.retry_attempts
+        self._serve_forever = serve_forever
+        self._state_reset_timeout = state_reset_timeout
         self.set_init_state()
 
     def emit_header(self):
@@ -42,7 +49,7 @@ class Client(ASTMProtocol):
         """Sends `data` to server. If server rejects data due to some reasons
         (with ``<NAK>`` reply) client tries to resend data for specified number
         of `attempts`. If no attempts left, `Rejected` error raised."""
-        if not attempts:
+        if attempts <= 0:
             raise Rejected('Server refused to accept data: %r', data)
         self.push(data)
 
@@ -51,25 +58,45 @@ class Client(ASTMProtocol):
         self.state = STATE.transfer
         self.on_transfer_state()
 
+    def start(self):
+        """Initiates client transfer by sending <ENQ> message to server."""
+        self.push(ENQ)
+        self.set_opened_state()
+
+    def terminate(self):
+        """Terminates client data transfer by sending <EOT> message to server.
+
+        If `server_forever` argument was passed on `Client` initialization,
+        after `state_reset_timeout` :meth:`start` will be called once again.
+        Otherwise connection with server will be closed.
+        """
+        self.push(EOT)
+        self.on_termination()
+        if self._serve_forever:
+            time.sleep(self._state_reset_timeout)
+            self.start()
+        else:
+            self.close()
+
     def on_enq(self):
         raise NotAccepted('Client should not receive ENQ.')
 
     def on_ack(self):
         if self.state not in [STATE.opened, STATE.transfer]:
             raise InvalidState('Client is not ready to accept ACK.')
-        self._retry_attempts = 3
+        self.retry_attempts = self._retry_attempts
         if self.state == STATE.opened:
             self.set_transfer_state()
             for record in self.emitter:
                 break
             else:
-                self.on_termination()
+                self.terminate()
                 return
         elif self.state == STATE.transfer:
             try:
                 record = self.emitter.send(True)
             except StopIteration:
-                self.on_termination()
+                self.terminate()
                 return
         state = self._transfer_state
         self._last_seq += 1
@@ -100,8 +127,8 @@ class Client(ASTMProtocol):
         self._transfer_state = state
 
     def on_nak(self):
-        self._retry_attempts -= 1
-        self.retry_push_or_fail(self._last_sent_data, self._retry_attempts)
+        self.retry_attempts -= 1
+        self.retry_push_or_fail(self._last_sent_data, self.retry_attempts)
 
     def on_eot(self):
         raise NotAccepted('Client should not receive EOT.')
@@ -112,10 +139,9 @@ class Client(ASTMProtocol):
     def on_init_state(self):
         self._last_seq = 0
         self._transfer_state = None
-        self.push(ENQ)
-        self.set_opened_state()
+
+    def on_opened_state(self):
+        self.emitter = self._emitter()
 
     def on_termination(self):
-        self.push(EOT)
-        time.sleep(5)
         self.set_init_state()
