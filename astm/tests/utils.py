@@ -14,6 +14,9 @@ class DummyMixIn(object):
     def flush(self):
         pass
 
+    def close(self):
+        pass
+
 
 class CallLogger(object):
 
