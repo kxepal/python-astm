@@ -107,9 +107,9 @@ class RequestHandler(ASTMProtocol):
         """
         raise NotImplementedError
 
-    def discard_input_buffer(self):
+    def discard_input_buffers(self):
         self._chunks = []
-        return super(RequestHandler, self).discard_input_buffer()
+        return super(RequestHandler, self).discard_input_buffers()
 
 
 class Server(Dispatcher):
