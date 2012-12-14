@@ -31,6 +31,7 @@ class RequestHandler(ASTMProtocol):
     def __init__(self, host, port, sock):
         super(RequestHandler, self).__init__(sock)
         self.set_init_state()
+        self._chunks = []
         self.client_info = {'host': host, 'port': port}
 
     def on_enq(self):
@@ -68,12 +69,12 @@ class RequestHandler(ASTMProtocol):
         if self.is_chunked_transfer is None:
             self.is_chunked_transfer = is_chunked_message(message)
         if self.is_chunked_transfer:
-            self.chunks.append(message)
+            self._chunks.append(message)
             self.process_message_chunk(*decode_message(message))
-        elif self.chunks:
-            self.chunks.append(message)
-            self.process_message(*decode_message(join(self.chunks)))
-            self.chunks = []
+        elif self._chunks:
+            self._chunks.append(message)
+            self.process_message(*decode_message(join(self._chunks)))
+            self._chunks = []
         else:
             self.process_message(*decode_message(message))
 
@@ -106,9 +107,9 @@ class RequestHandler(ASTMProtocol):
         """
         raise NotImplementedError
 
-    def on_init_state(self):
-        self._last_recv_data = None
-        self.chunks = []
+    def discard_input_buffer(self):
+        self._chunks = []
+        return super(RequestHandler, self).discard_input_buffer()
 
 
 class Server(Dispatcher):

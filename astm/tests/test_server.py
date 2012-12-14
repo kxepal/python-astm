@@ -90,7 +90,7 @@ class RequestHandlerTestCase(unittest.TestCase):
                                                         .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
         self.assertTrue(self.req.process_message.was_called)
-        self.assertFalse(self.req.chunks)
+        self.assertFalse(self.req._chunks)
 
     def test_accept_message_chunk(self):
         self.req.state = proto.STATE.transfer
@@ -99,18 +99,18 @@ class RequestHandlerTestCase(unittest.TestCase):
                                                  .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
         self.assertTrue(self.req.process_message_chunk.was_called)
-        self.assertTrue(self.req.chunks)
+        self.assertTrue(self.req._chunks)
 
     def test_join_chunks_on_last_one(self):
         self.req.state = proto.STATE.transfer
         self.req.is_chunked_transfer = False
-        self.req.chunks = ['']
+        self.req._chunks = ['']
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                  .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
         self.assertTrue(self.req.process_message.was_called)
         self.assertFalse(self.req.process_message_chunk.was_called)
-        self.assertFalse(self.req.chunks)
+        self.assertFalse(self.req._chunks)
 
     def test_cleanup_input_buffer_on_message_reject(self):
         self.req.state = proto.STATE.init
