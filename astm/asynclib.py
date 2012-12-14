@@ -801,8 +801,14 @@ class AsyncChat(Dispatcher):
     def discard_buffers(self):
         """In emergencies this method will discard any data held in the input
         and output buffers."""
+        self.discard_input_buffers()
+        self.discard_output_buffers()
+
+    def discard_input_buffers(self):
         self._input_buffer = b('')
         self.inbox.clear()
+
+    def discard_output_buffers(self):
         self.outbox.clear()
 
 
