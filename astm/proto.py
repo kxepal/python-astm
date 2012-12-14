@@ -8,7 +8,7 @@
 #
 
 import logging
-from threading import Timer, RLock
+from threading import _Timer, RLock
 from collections import namedtuple
 from .asynclib import AsyncChat
 from .records import HeaderRecord, TerminatorRecord
@@ -38,7 +38,7 @@ class ASTMProtocol(AsyncChat):
     _state = None
     _lock = RLock()
     _timer = None
-    _timer_cls = Timer
+    _timer_cls = _Timer
 
     def found_terminator(self):
         while self.inbox:
