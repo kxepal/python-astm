@@ -353,12 +353,12 @@ class Dispatcher(object):
         element the host to connect to, and the second the port number.
         """
         self.connected = False
+        self.addr = address
         err = self.socket.connect_ex(address)
         if err in (EINPROGRESS, EALREADY, EWOULDBLOCK)\
         or err == EINVAL and os.name in ('nt', 'ce'):
             return
         if err in (0, EISCONN):
-            self.addr = address
             self.handle_connect_event()
         else:
             raise socket.error(err, errorcode[err])
@@ -391,7 +391,7 @@ class Dispatcher(object):
     def send(self, data):
         """Send `data` to the remote end-point of the socket."""
         try:
-            log.debug('<<< %r', data)
+            log.debug('[%s:%d] <<< %r', self.addr[0], self.addr[1], data)
             result = self.socket.send(data)
             return result
         except socket.error as err:
@@ -411,7 +411,7 @@ class Dispatcher(object):
         """
         try:
             data = self.socket.recv(buffer_size)
-            log.debug('>>> %r', data)
+            log.debug('[%s:%d] >>> %r', self.addr[0], self.addr[1], data)
             if not data:
                 # a closed connection is indicated by signaling
                 # a read condition, and having recv() return 0.
@@ -531,7 +531,7 @@ class Dispatcher(object):
         Might send a "welcome" banner, or initiate a protocol negotiation with
         the remote endpoint, for example.
         """
-        log.debug('Unhandled connect event')
+        log.info('Connection established with %s:%d', self.addr[0], self.addr[1])
 
     def handle_accept(self):
         """
