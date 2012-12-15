@@ -8,9 +8,9 @@
 #
 
 import unittest
-from astm.exceptions import NotAccepted, Rejected, InvalidState
+from astm.exceptions import NotAccepted, InvalidState
 from astm.client import Client
-from astm import constants, proto, records
+from astm import constants, protocol, records
 from astm.tests.utils import DummyMixIn, track_call
 
 
@@ -54,12 +54,12 @@ class ClientTestCase(unittest.TestCase):
 
     def test_init_state(self):
         client = DummyClient(emitter)
-        self.assertEqual(client.state, proto.STATE.init)
+        self.assertEqual(client.state, protocol.STATE.init)
 
     def test_open_connection(self):
         client = DummyClient(emitter)
         client.start()
-        self.assertEqual(client.state, proto.STATE.opened)
+        self.assertEqual(client.state, protocol.STATE.opened)
         self.assertEqual(client.outbox[0], constants.ENQ)
 
     def test_fail_on_enq(self):
@@ -93,7 +93,7 @@ class ClientTestCase(unittest.TestCase):
         client.on_nak()
         self.assertLessEqual(client.retry_attempts, 0)
         self.assertTrue(client.retry_push_or_fail.was_called)
-        self.assertEqual(client.state, proto.STATE.init)
+        self.assertEqual(client.state, protocol.STATE.init)
 
     def test_callback_on_sent_failure(self):
         client = DummyClient(emitter)
@@ -105,13 +105,13 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.emitter.inbox[0], False)
 
     def test_serve_forever(self):
-        client = DummyClient(emitter, serve_forever=True, state_reset_timeout=0)
+        client = DummyClient(emitter, serve_forever=True, timeout=0)
         client.start()
         client.terminate()
         self.assertEqual(list(client.outbox), [constants.ENQ,
                                                constants.EOT,
                                                constants.ENQ])
-        self.assertEqual(client.state, proto.STATE.opened)
+        self.assertEqual(client.state, protocol.STATE.opened)
 
 
 class ClientOnAck(unittest.TestCase):
@@ -168,7 +168,7 @@ class ClientOnAck(unittest.TestCase):
         client.on_ack() # for ENQ
         client.on_ack() # for H
         client.on_ack() # for L
-        self.assertEqual(client.state, proto.STATE.init)
+        self.assertEqual(client.state, protocol.STATE.init)
         self.assertEqual(client._transfer_state, None)
         self.assertTrue(client.on_termination.was_called)
 

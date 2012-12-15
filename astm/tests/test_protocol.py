@@ -10,7 +10,7 @@
 import unittest
 from astm import constants
 from astm.tests.utils import DummyMixIn, track_call
-from astm import proto
+from astm import protocol
 
 class DummyTimer(object):
     def __init__(self, timeout, callback):
@@ -28,7 +28,7 @@ class DummyTimer(object):
         self._alive = False
 
 
-class DummyProto(DummyMixIn, proto.ASTMProtocol):
+class DummyProto(DummyMixIn, protocol.ASTMProtocol):
     _timer_cls = DummyTimer
 
 
@@ -104,7 +104,7 @@ class StateTestCase(unittest.TestCase):
     def test_set_init_state(self):
         obj = DummyProto()
         obj.set_init_state()
-        self.assertEqual(obj.state, proto.STATE.init)
+        self.assertEqual(obj.state, protocol.STATE.init)
 
     def test_on_init_state(self):
         obj = DummyProto()
@@ -115,7 +115,7 @@ class StateTestCase(unittest.TestCase):
     def test_set_opened_state(self):
         obj = DummyProto()
         obj.set_opened_state()
-        self.assertEqual(obj.state, proto.STATE.opened)
+        self.assertEqual(obj.state, protocol.STATE.opened)
 
     def test_on_opened_state(self):
         obj = DummyProto()
@@ -126,7 +126,7 @@ class StateTestCase(unittest.TestCase):
     def test_set_transfer_state(self):
         obj = DummyProto()
         obj.set_transfer_state()
-        self.assertEqual(obj.state, proto.STATE.transfer)
+        self.assertEqual(obj.state, protocol.STATE.transfer)
 
     def test_on_transfer_state(self):
         obj = DummyProto()

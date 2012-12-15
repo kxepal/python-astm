@@ -40,6 +40,11 @@ class ASTMProtocol(AsyncChat):
     _timer = None
     _timer_cls = _Timer
 
+    def __init__(self, sock=None, map=None, timeout=None):
+        super(ASTMProtocol, self).__init__(sock, map)
+        if timeout is not None:
+            self.timeout = timeout
+
     def found_terminator(self):
         while self.inbox:
             data = self.inbox.popleft()

@@ -14,7 +14,7 @@ from .codec import encode_message
 from .constants import ENQ, EOT
 from .exceptions import InvalidState, NotAccepted
 from .mapping import Record
-from .proto import ASTMProtocol, STATE
+from .protocol import ASTMProtocol, STATE
 
 
 log = logging.getLogger(__name__)
@@ -35,23 +35,22 @@ class Client(ASTMProtocol):
     :param serve_forever: Start over emitter after transfer termination.
     :type serve_forever: bool
 
-    :param state_reset_timeout: Time between switching from transfer
+    :param timeout: Time between switching from transfer
                                 termination state to initialization.
-    :type state_reset_timeout: bool
+    :type timeout: bool
     """
 
     #: Number or attempts to send record to server.
     retry_attempts = 3 # actually useless thing, but specification requires it.
 
     def __init__(self, emitter, host='localhost', port=15200,
-                 serve_forever=False, state_reset_timeout=20):
-        super(Client, self).__init__()
+                 serve_forever=False, timeout=20):
+        super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
         self._emitter = emitter
         self._retry_attempts = self.retry_attempts
         self._serve_forever = serve_forever
-        self._state_reset_timeout = state_reset_timeout
         self.set_init_state()
 
     def emit_header(self):
@@ -96,7 +95,8 @@ class Client(ASTMProtocol):
         self.push(EOT)
         self.on_termination()
         if self._serve_forever:
-            time.sleep(self._state_reset_timeout)
+            if self.timeout is not None:
+                time.sleep(self.timeout)
             self.start()
         else:
             self.close()

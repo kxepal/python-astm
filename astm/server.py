@@ -13,7 +13,7 @@ from .asynclib import Dispatcher
 from .codec import decode_message, is_chunked_message, join
 from .constants import ACK, NAK
 from .exceptions import InvalidState, NotAccepted
-from .proto import ASTMProtocol, STATE
+from .protocol import ASTMProtocol, STATE
 
 log = logging.getLogger(__name__)
 
@@ -138,6 +138,5 @@ class Server(Dispatcher):
         if pair is None:
             return
         sock, addr = pair
-        log.debug('Connection accepted for %s:%d', *self.addr)
         self.request(addr[0], addr[1], sock)
         super(Server, self).handle_accept()
