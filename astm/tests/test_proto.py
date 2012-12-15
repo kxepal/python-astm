@@ -184,6 +184,13 @@ class TimeoutTestCase(unittest.TestCase):
         obj._timer.callback()
         self.assertTrue(obj.on_timeout.was_called)
 
+    def test_timer_is_daemon(self):
+        obj = DummyProto()
+        obj.on_timeout = track_call(obj.on_timeout)
+        obj.timeout = 1
+        obj.start_timer()
+        assert obj._timer.daemon
+
 
 if __name__ == '__main__':
     unittest.main()

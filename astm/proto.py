@@ -82,6 +82,7 @@ class ASTMProtocol(AsyncChat):
             return
         self.stop_timer()
         self._timer = self._timer_cls(self.timeout, self.on_timeout)
+        self._timer.daemon = True
         self._timer.start()
         log.debug('Timer %r started', self._timer)
 
