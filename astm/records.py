@@ -18,7 +18,7 @@ from .mapping import (
 )
 
 __all__ = ['HeaderRecord', 'PatientRecord', 'OrderRecord',
-           'ResultRecord' 'CommentRecord', 'TerminatorRecord']
+           'ResultRecord', 'CommentRecord', 'TerminatorRecord']
 
 HeaderRecord = Record.build(
     ConstantField(name='type', default='H'),
