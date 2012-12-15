@@ -2,10 +2,10 @@
 ASTM protocol implementation
 ============================
 
-``astm.proto`` :: Base protocol handler
----------------------------------------
+``astm.protocol`` :: Base protocol handler
+------------------------------------------
 
-.. automodule:: astm.proto
+.. automodule:: astm.protocol
    :members:
 
 ``astm.server`` :: ASTM Server

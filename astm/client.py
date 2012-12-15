@@ -16,9 +16,9 @@ from .exceptions import InvalidState, NotAccepted
 from .mapping import Record
 from .protocol import ASTMProtocol, STATE
 
-
 log = logging.getLogger(__name__)
 
+__all__ = ['Client']
 
 class Client(ASTMProtocol):
     """Common ASTM client implementation.
@@ -35,9 +35,9 @@ class Client(ASTMProtocol):
     :param serve_forever: Start over emitter after transfer termination.
     :type serve_forever: bool
 
-    :param timeout: Time between switching from transfer
-                                termination state to initialization.
-    :type timeout: bool
+    :param timeout: send/recv operation timeout value. If :const:`None` it will
+                    be disabled.
+    :type timeout: int
     """
 
     #: Number or attempts to send record to server.
@@ -63,8 +63,8 @@ class Client(ASTMProtocol):
 
     def retry_push_or_fail(self, data, attempts=3):
         """Sends `data` to server. If server rejects data due to some reasons
-        (with ``<NAK>`` reply) client tries to resend data for specified number
-        of `attempts`. If no attempts left, `Rejected` error raised."""
+        (with <NAK> reply) client tries to resend data for specified number
+        of `attempts`. If no attempts left, client terminates his session."""
         if attempts <= 0:
             try:
                 self.emitter.send(False)

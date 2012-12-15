@@ -16,7 +16,10 @@ from .constants import STX, CRLF, ENQ, ACK, NAK, EOT, ENCODING
 
 log = logging.getLogger(__name__)
 
+#: ASTM protocol states set.
 STATE = namedtuple('ASTMState', ['init', 'opened', 'transfer'])(*range(3))
+
+__all__ = ['STATE', 'ASTMProtocol']
 
 class ASTMProtocol(AsyncChat):
     """Common ASTM protocol routines."""
@@ -100,16 +103,16 @@ class ASTMProtocol(AsyncChat):
         self._timer = None
 
     def on_enq(self):
-        """Calls on ``ENQ`` message receiving."""
+        """Calls on <ENQ> message receiving."""
 
     def on_ack(self):
-        """Calls on ``ACK`` message receiving."""
+        """Calls on <ACK> message receiving."""
 
     def on_nak(self):
-        """Calls on ``NAK`` message receiving."""
+        """Calls on <NAK> message receiving."""
 
     def on_eot(self):
-        """Calls on ``EOT`` message receiving."""
+        """Calls on <EOT> message receiving."""
 
     def on_message(self):
         """Calls on ASTM message receiving."""
@@ -121,7 +124,7 @@ class ASTMProtocol(AsyncChat):
         assert value in STATE
         self._state = value
 
-    #: """ASTM handler state value:
+    #: ASTM handler state value:
     #:
     #: - ``init``: Neutral state
     #: - ``opened``: ENQ message was sent, waiting for ACK
@@ -144,8 +147,8 @@ class ASTMProtocol(AsyncChat):
         """Sets handler state to OPENED (1).
 
         Intermediate state that only means for client implementation. On this
-        state client had already sent ``<ENQ>`` and awaits for ``<ACK>`` or
-        ``<NAK>`` response. On ``<ACK>`` it switched his state to `transfer`.
+        state client had already sent <ENQ> and awaits for <ACK> or
+        <NAK> response. On <ACK> it switched his state to `transfer`.
         """
         self.terminator = 1
         self.state = STATE.opened
@@ -157,7 +160,7 @@ class ASTMProtocol(AsyncChat):
 
         In this state handler is able to send or receive ASTM messages depending
         on his role (client or server). At the end of data transfer client
-        should send ``<EOT>`` and switch state to `init`.
+        should send <EOT> and switch state to `init`.
         """
         self.terminator = [CRLF, EOT]
         self.state = STATE.transfer
