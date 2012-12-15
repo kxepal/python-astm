@@ -12,7 +12,7 @@ import socket
 import time
 from .codec import encode_message
 from .constants import ENQ, EOT
-from .exceptions import InvalidState, NotAccepted, Rejected
+from .exceptions import InvalidState, NotAccepted
 from .mapping import Record
 from .proto import ASTMProtocol, STATE
 
@@ -67,8 +67,14 @@ class Client(ASTMProtocol):
         (with ``<NAK>`` reply) client tries to resend data for specified number
         of `attempts`. If no attempts left, `Rejected` error raised."""
         if attempts <= 0:
-            raise Rejected('Server refused to accept data: %r', data)
-        self.push(data)
+            try:
+                self.emitter.send(False)
+            except StopIteration:
+                pass
+            finally:
+                self.terminate()
+        else:
+            self.push(data)
 
     def set_transfer_state(self):
         self.terminator = 1

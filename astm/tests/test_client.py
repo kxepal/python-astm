@@ -84,15 +84,25 @@ class ClientTestCase(unittest.TestCase):
         self.assertTrue(client.retry_push_or_fail.was_called)
         self.assertEqual(client.outbox[0], 'foo')
 
-    def test_fail_on_attempts_limit_reach(self):
+    def test_fail_on_send_attempts_limit_reaching(self):
         client = DummyClient(emitter)
+        client.set_opened_state()
         client._last_sent_data = 'foo'
         client.retry_attempts = 1
         client.retry_push_or_fail = track_call(client.retry_push_or_fail)
-        self.assertRaises(Rejected, client.on_nak)
+        client.on_nak()
         self.assertLessEqual(client.retry_attempts, 0)
         self.assertTrue(client.retry_push_or_fail.was_called)
-        self.assertFalse(client.outbox)
+        self.assertEqual(client.state, proto.STATE.init)
+
+    def test_callback_on_sent_failure(self):
+        client = DummyClient(emitter)
+        client.set_opened_state()
+        client._last_sent_data = 'foo'
+        client.retry_attempts = 1
+        client.retry_push_or_fail = track_call(client.retry_push_or_fail)
+        client.on_nak()
+        self.assertEqual(client.emitter.inbox[0], False)
 
     def test_serve_forever(self):
         client = DummyClient(emitter, serve_forever=True, state_reset_timeout=0)
