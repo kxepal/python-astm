@@ -1,4 +1,16 @@
 
+Release 0.3 (2012-12-15)
+------------------------
+
+- Refactor OmniLab module;
+- Rename astm.proto module to astm.protocol;
+- Add support for network operation timeouts;
+- Client now better communicates with ASTM records emitter;
+- Improve logging;
+- Code cleanup;
+- More tests for base functionality.
+
+
 Release 0.2 (2012-12-11)
 ------------------------
 
