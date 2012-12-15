@@ -34,7 +34,7 @@ HeaderRecord = Record.build(
     NotUsedField(name='address'),
     NotUsedField(name='reserved'),
     NotUsedField(name='phone'),
-    NotUsedField(name='chars'),
+    NotUsedField(name='caps'),
     NotUsedField(name='receiver'),
     NotUsedField(name='comments'),
     ConstantField(name='processing_id', default='P'),
