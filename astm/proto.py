@@ -79,7 +79,6 @@ class ASTMProtocol(AsyncChat):
 
     def start_timer(self):
         if self.timeout is None:
-            log.debug('Unable to start timer: timeout is None')
             return
         self.stop_timer()
         self._timer = self._timer_cls(self.timeout, self.on_timeout)
@@ -87,7 +86,7 @@ class ASTMProtocol(AsyncChat):
         log.debug('Timer %r started', self._timer)
 
     def stop_timer(self):
-        if self.timeout is None:
+        if self.timeout is None or self._timer is None:
             return
         if self._timer is not None and self._timer.is_alive():
             self._timer.cancel()
