@@ -7,6 +7,7 @@
 # you should have received as part of this distribution.
 #
 
+from .version import __version__, __version_info__
 from .exceptions import BaseASTMError, NotAccepted, InvalidState
 from .codec import (
     decode, decode_message, decode_record,
