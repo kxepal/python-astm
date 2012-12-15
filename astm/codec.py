@@ -251,4 +251,6 @@ def join(chunks):
 
 def is_chunked_message(message):
     """Checks plain message for chunked byte."""
+    if len(message) < 5:
+        return False
     return message[-5] == ETB
