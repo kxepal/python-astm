@@ -91,7 +91,7 @@ class RequestHandler(ASTMProtocol):
         :param cs: Checksum
         :type cs: str
         """
-        raise NotImplementedError
+        pass
 
     def process_message(self, seq, records, cs):
         """Abstract ASTM message processor.
