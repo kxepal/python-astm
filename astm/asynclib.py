@@ -531,7 +531,7 @@ class Dispatcher(object):
         Might send a "welcome" banner, or initiate a protocol negotiation with
         the remote endpoint, for example.
         """
-        log.info('Connection established with %s:%d', self.addr[0], self.addr[1])
+        log.info('[%s:%d] Connection established', self.addr[0], self.addr[1])
 
     def handle_accept(self):
         """
@@ -539,9 +539,11 @@ class Dispatcher(object):
         established with a new remote endpoint that has issued a :meth:`connect`
         call for the local endpoint.
         """
+        log.info('[%s:%d] Connection accepted', self.addr[0], self.addr[1])
 
     def handle_close(self):
         """Called when the socket is closed."""
+        log.info('[%s:%d] Connection closed', self.addr[0], self.addr[1])
         self.close()
 
 
@@ -817,71 +819,3 @@ def find_prefix_at_end(haystack, needle):
     while l and not haystack.endswith(needle[:l]):
         l -= 1
     return l
-
-
-# Asynchronous File I/O:
-#
-# After a little research (reading man pages on various unixen, and
-# digging through the linux kernel), I've determined that select()
-# isn't meant for doing asynchronous file i/o.
-# Heartening, though - reading linux/mm/filemap.c shows that linux
-# supports asynchronous read-ahead. So _MOST_ of the time, the data
-# will be sitting in memory for us already when we go to read it.
-#
-# What other OS's (besides NT) support async file i/o?  [VMS?]
-#
-# Regardless, this is useful for pipes, and stdin/stdout...
-
-if os.name == 'posix':
-    import fcntl
-
-    class FileWrapper(object):
-        # Here we override just enough to make a file
-        # look like a socket for the purposes of asyncore.
-        # The passed fd is automatically os.dup()'d
-
-        def __init__(self, fd):
-            self.fd = os.dup(fd)
-
-        def recv(self, *args):
-            return os.read(self.fd, *args)
-
-        def send(self, *args):
-            return os.write(self.fd, *args)
-
-        def getsockopt(self, level, optname, buflen=None):
-            if (level == socket.SOL_SOCKET and
-                optname == socket.SO_ERROR and
-                not buflen):
-                return 0
-            raise NotImplementedError('Only asyncore specific behaviour'
-                                      ' implemented.')
-
-        read = recv
-        write = send
-
-        def close(self):
-            os.close(self.fd)
-
-        def fileno(self):
-            return self.fd
-
-    class FileDispatcher(Dispatcher):
-
-        def __init__(self, fd, map=None):
-            super(FileDispatcher, self).__init__(map=map)
-            self.connected = True
-            try:
-                fd = fd.fileno()
-            except AttributeError:
-                pass
-            self.set_file(fd)
-            # set it to non-blocking mode
-            flags = fcntl.fcntl(fd, fcntl.F_GETFL, 0)
-            flags = flags | os.O_NONBLOCK
-            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
-
-        def set_file(self, fd):
-            self.socket = FileWrapper(fd)
-            self._fileno = self.socket.fileno()
-            self._add_channel()

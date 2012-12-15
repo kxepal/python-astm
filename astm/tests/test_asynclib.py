@@ -316,60 +316,10 @@ class DispatcherWithSendTests_UsePoll(DispatcherWithSendTests):
     usepoll = True
 
 
-class FileWrapperTest(unittest.TestCase):
-    def setUp(self):
-        self.d = "It's not dead, it's sleeping!".encode()
-        file(TESTFN, 'w').write(self.d)
-
-    def tearDown(self):
-        unlink(TESTFN)
-
-    def test_recv(self):
-        fd = os.open(TESTFN, os.O_RDONLY)
-        w = asynclib.FileWrapper(fd)
-        os.close(fd)
-
-        self.assertNotEqual(w.fd, fd)
-        self.assertNotEqual(w.fileno(), fd)
-        self.assertEqual(w.recv(13), "It's not dead".encode())
-        self.assertEqual(w.read(6), ", it's".encode())
-        w.close()
-        self.assertRaises(OSError, w.read, 1)
-
-    def test_send(self):
-        d1 = "Come again?".encode()
-        d2 = "I want to buy some cheese.".encode()
-        fd = os.open(TESTFN, os.O_WRONLY | os.O_APPEND)
-        w = asynclib.FileWrapper(fd)
-        os.close(fd)
-
-        w.write(d1)
-        w.send(d2)
-        w.close()
-        self.assertEqual(file(TESTFN).read(), self.d + d1 + d2)
-
-    def test_dispatcher(self):
-        fd = os.open(TESTFN, os.O_RDONLY)
-        data = []
-        class FileDispatcher(asynclib.FileDispatcher):
-            def handle_read(self):
-                c = self.recv(29)
-                try:
-                    c = c.decode()
-                except AttributeError:
-                    pass
-                data.append(c)
-        s = FileDispatcher(fd)
-        os.close(fd)
-        asynclib.loop(timeout=0.01, count=2)
-        self.assertEqual("".join(data).encode(), self.d)
-
 
 def test_main():
     tests = [HelperFunctionTests, DispatcherTests, DispatcherWithSendTests,
              DispatcherWithSendTests_UsePoll]
-    if hasattr(asynclib, 'FileWrapper'):
-        tests.append(FileWrapperTest)
 
     run_unittest(*tests)
 
