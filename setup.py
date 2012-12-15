@@ -8,6 +8,7 @@
 # you should have received as part of this distribution.
 #
 
+from astm.version import __version__
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -37,7 +38,7 @@ except ImportError:
 
 setup(
     name = 'astm',
-    version = '0.2',
+    version = __version__,
     description = 'Python implementation of ASTM E1381/1394-91 protocol.',
 
     author = 'Alexander Shorin',
