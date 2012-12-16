@@ -14,6 +14,7 @@ Contents:
 
    codecs
    mapping
+   records
    asynclib
    protocol
    modules
