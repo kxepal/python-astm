@@ -7,7 +7,14 @@
 # you should have received as part of this distribution.
 #
 
-"""Common ASTM records structure."""
+"""Common ASTM records structure.
+
+
+This module contains base ASTM records mappings with only defined common
+required fields for most implementations. Others are marked as
+:class:`~astm.mapping.NotUsedField` and should be defined explicitly for your
+ASTM realisation.
+"""
 
 
 from datetime import datetime

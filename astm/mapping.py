@@ -504,7 +504,9 @@ class RepeatedComponentField(Field):
 
 
 class NotUsedField(Field):
-
+    """Mapping field for value that should be used. Acts as placeholder.
+    On attempt to assign something to it raises :exc:`UserWarning` and rejects
+    assigned value."""
     def __init__(self, name=None):
         super(NotUsedField, self).__init__(name)
 
