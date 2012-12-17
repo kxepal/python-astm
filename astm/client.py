@@ -62,7 +62,7 @@ class Client(ASTMProtocol):
         """Returns Terminator record."""
         return self.astm_terminator()
 
-    def retry_push_or_fail(self, data, attempts=3):
+    def retry_push_or_fail(self, data, attempts):
         """Sends `data` to server. If server rejects data due to some reasons
         (with <NAK> reply) client tries to resend data for specified number
         of `attempts`. If no attempts left, client terminates his session."""
