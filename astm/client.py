@@ -10,6 +10,7 @@
 import logging
 import socket
 import time
+from .asynclib import loop
 from .codec import encode_message
 from .constants import ENQ, EOT
 from .exceptions import InvalidState, NotAccepted
@@ -80,10 +81,12 @@ class Client(ASTMProtocol):
         self.state = STATE.transfer
         self.on_transfer_state()
 
-    def start(self):
-        """Initiates client transfer by sending <ENQ> message to server."""
-        self.push(ENQ)
-        self.set_opened_state()
+    def start(self, *args, **kwargs):
+        """Initiates client transfer by sending <ENQ> message to server.
+        Implicitly runs pooling :func:`loop <astm.asynclib.loop>`
+        """
+        self.on_start()
+        loop(*args, **kwargs)
 
     def terminate(self):
         """Terminates client data transfer by sending <EOT> message to server.
@@ -92,12 +95,11 @@ class Client(ASTMProtocol):
         after `state_reset_timeout` :meth:`start` will be called once again.
         Otherwise connection with server will be closed.
         """
-        self.push(EOT)
         self.on_termination()
         if self._serve_forever:
             if self.timeout is not None:
                 time.sleep(self.timeout)
-            self.start()
+            self.on_start()
         else:
             self.close()
 
@@ -166,6 +168,12 @@ class Client(ASTMProtocol):
     def on_opened_state(self):
         self.emitter = self._emitter()
 
+    def on_start(self):
+        """Calls on transfer initialization. Sets client state to OPENED (1)."""
+        self.push(ENQ)
+        self.set_opened_state()
+
     def on_termination(self):
         """Calls on transfer termination. Resets client state to INIT (0)."""
+        self.push(EOT)
         self.set_init_state()

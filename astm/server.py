@@ -9,7 +9,7 @@
 
 import logging
 import socket
-from .asynclib import Dispatcher
+from .asynclib import Dispatcher, loop
 from .codec import decode_message, is_chunked_message, join
 from .constants import ACK, NAK
 from .exceptions import InvalidState, NotAccepted
@@ -142,3 +142,8 @@ class Server(Dispatcher):
         sock, addr = pair
         self.request(addr[0], addr[1], sock)
         super(Server, self).handle_accept()
+
+    def start(self, *args, **kwargs):
+        """Starts server by entering in a pooling
+        :func:`loop <astm.asynclib.loop>`."""
+        loop(*args, **kwargs)
