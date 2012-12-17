@@ -8,7 +8,7 @@
 #
 
 #: :mod:`astm.protocol` base encoding.
-ENCODING = 'utf-8'
+ENCODING = 'latin-1'
 
 #: Maximum message size before it will be split by chunks.
 #: If is `None` encoded message will be never split.
