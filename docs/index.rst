@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
    :numbered:
 
+   constants
    codecs
    mapping
    records

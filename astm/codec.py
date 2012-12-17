@@ -11,16 +11,13 @@ from collections import Iterable
 from .compat import basestring, unicode
 from .constants import (
     STX, ETX, ETB, CR, LF, CRLF,
-    FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP
+    FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP,
+    MAX_MESSAGE_SIZE
 )
 try:
     from itertools import izip_longest
 except ImportError: # Python 3
     from itertools import zip_longest as izip_longest
-
-#: Maximum message size before it will be split by chunks.
-#: If is `None` encoded message will be never split.
-MAX_MESSAGE_SIZE = None
 
 def decode(data):
     """Common ASTM decoding function that tries to guess which kind of data it

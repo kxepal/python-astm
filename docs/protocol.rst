@@ -2,8 +2,8 @@
 ASTM protocol implementation
 ============================
 
-``astm.protocol`` :: Base protocol handler
-------------------------------------------
+``astm.protocol`` :: Common protocol routines
+---------------------------------------------
 
 .. automodule:: astm.protocol
    :members:

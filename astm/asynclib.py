@@ -10,16 +10,12 @@
 #
 
 """
-:mod:`astm.asynclib` --- Asynchronous socket handler
-====================================================
-
 .. module:: astm.asynclib
    :synopsis: Forked version of asyncore mixed with asynchat.
 .. moduleauthor:: Sam Rushing <rushing@nightmare.com>
 .. sectionauthor:: Christopher Petrilli <petrilli@amber.org>
 .. sectionauthor:: Steve Holden <sholden@holdenweb.com>
 .. heavily adapted from original documentation by Sam Rushing
-
 """
 
 import logging

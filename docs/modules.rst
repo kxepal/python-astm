@@ -3,8 +3,8 @@
 ASTM implemetation modules
 ==========================
 
-Omnilab Labonline
-=================
+``astm.omnilab`` :: Omnilab LabOnline
+=====================================
 
 Based on:
 

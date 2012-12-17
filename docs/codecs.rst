@@ -1,6 +1,6 @@
 
-ASTM message decoding and encoding
-==================================
+``astm.codec`` :: Base decoding and encoding functions
+======================================================
 
 .. automodule:: astm.codec
    :members:
