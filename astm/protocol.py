@@ -176,9 +176,6 @@ class ASTMProtocol(AsyncChat):
     def on_transfer_state(self):
         """Calls on set state TRANSFER (1)"""
 
-    def on_termination(self):
-        """May be called before updating state  from TRANSFER (1) to INIT (0)"""
-
     def on_timeout(self):
         """Calls when timeout occurs for send/recv operations."""
 

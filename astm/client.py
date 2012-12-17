@@ -167,4 +167,5 @@ class Client(ASTMProtocol):
         self.emitter = self._emitter()
 
     def on_termination(self):
+        """Calls on transfer termination. Resets client state to INIT (0)."""
         self.set_init_state()
