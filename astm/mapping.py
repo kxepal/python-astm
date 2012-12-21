@@ -174,11 +174,13 @@ class Mapping(_MappingProxy):
                 if isinstance(value, Mapping):
                     yield list(values(value))
                 elif isinstance(value, list):
+                    stack = []
                     for item in value:
                         if isinstance(item, Mapping):
-                            yield list(values(item))
+                            stack.append(list(values(item)))
                         else:
-                            yield item
+                            stack.append(item)
+                    yield stack
                 elif value is None and field.required:
                     raise ValueError('Field %r value should not be None' % key)
                 else:
