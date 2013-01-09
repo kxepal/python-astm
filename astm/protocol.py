@@ -174,7 +174,7 @@ class ASTMProtocol(AsyncChat):
         """Calls on set state OPENED (1)"""
 
     def on_transfer_state(self):
-        """Calls on set state TRANSFER (1)"""
+        """Calls on set state TRANSFER (2)"""
 
     def on_timeout(self):
         """Calls when timeout occurs for send/recv operations."""
