@@ -177,7 +177,8 @@ class ASTMProtocol(AsyncChat):
         """Calls on set state TRANSFER (2)"""
 
     def on_timeout(self):
-        """Calls when timeout occurs for send/recv operations."""
+        """Calls when timeout event occurs. Used to limit time for waiting
+        response data."""
 
     def discard_input_buffers(self):
         self._last_recv_message = None
