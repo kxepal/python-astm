@@ -8,7 +8,7 @@
 #
 
 import unittest
-from astm.exceptions import NotAccepted, InvalidState
+from astm.exceptions import NotAccepted, InvalidState, Rejected
 from astm.client import Client
 from astm import constants, protocol, records
 from astm.tests.utils import DummyMixIn, track_call
@@ -74,35 +74,50 @@ class ClientTestCase(unittest.TestCase):
         client = DummyClient(emitter)
         self.assertRaises(NotAccepted, client.on_message)
 
-    def test_retry_on_nak(self):
-        client = DummyClient(emitter)
-        client._last_sent_data = 'foo'
-        attempts_was = client.remain_attempts
-        client.retry_push_or_fail = track_call(client.retry_push_or_fail)
-        client.on_nak()
-        self.assertLess(client.remain_attempts, attempts_was)
-        self.assertTrue(client.retry_push_or_fail.was_called)
-        self.assertEqual(client.outbox[0], 'foo')
-
-    def test_fail_on_send_attempts_limit_reaching(self):
+    def test_retry_enq_request(self):
         client = DummyClient(emitter)
         client.set_opened_state()
-        client._last_sent_data = 'foo'
-        client.remain_attempts = 1
-        client.retry_push_or_fail = track_call(client.retry_push_or_fail)
         client.on_nak()
-        self.assertLessEqual(client.remain_attempts, 0)
-        self.assertTrue(client.retry_push_or_fail.was_called)
-        self.assertEqual(client.state, protocol.STATE.init)
+        self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
+        self.assertEqual(client.outbox[0], constants.ENQ)
+
+    def test_raise_exception_if_enq_was_not_accepted(self):
+        client = DummyClient(emitter)
+        client.set_opened_state()
+        client.remain_attempts = 0
+        self.assertRaises(Rejected, client.on_nak)
 
     def test_callback_on_sent_failure(self):
         client = DummyClient(emitter)
         client.set_opened_state()
-        client._last_sent_data = 'foo'
-        client.remain_attempts = 1
-        client.retry_push_or_fail = track_call(client.retry_push_or_fail)
+        client.set_transfer_state()
         client.on_nak()
         self.assertEqual(client.emitter.inbox[0], False)
+
+    def test_emitter_may_send_new_record_after_nak_response(self):
+        client = DummyClient(emitter)
+        client.set_opened_state()
+        client.set_transfer_state()
+        client._last_record_type = 'order'
+        client.emitter.put(['R'])
+        client.on_nak()
+        self.assertEqual(client.outbox[0][2], 'R')
+
+    def test_terminate_if_emitter_raises_exception_on_nak(self):
+        class emitter(object):
+            def send(self, value):
+                assert value
+                return super(emitter, self).send(value)
+        client = DummyClient(emitter)
+        client.set_opened_state()
+        client.set_transfer_state()
+        client.terminate = track_call(client.terminate)
+        self.assertRaises(AssertionError, client.on_nak)
+        self.assertEqual(client.state, protocol.STATE.init)
+
+    def test_dont_accept_nak_in_invalid_state(self):
+        client = DummyClient(emitter)
+        self.assertRaises(InvalidState, client.on_nak)
 
     def test_serve_forever(self):
         client = DummyClient(emitter, serve_forever=True, timeout=0)

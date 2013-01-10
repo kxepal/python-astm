@@ -13,7 +13,7 @@ import time
 from .asynclib import loop
 from .codec import encode_message
 from .constants import ENQ, EOT
-from .exceptions import InvalidState, NotAccepted
+from .exceptions import InvalidState, NotAccepted, Rejected
 from .mapping import Record
 from .protocol import ASTMProtocol, STATE
 
@@ -64,19 +64,21 @@ class Client(ASTMProtocol):
         """Returns Terminator record."""
         return self.astm_terminator()
 
-    def retry_push_or_fail(self, data, attempts):
-        """Sends `data` to server. If server rejects data due to some reasons
-        (with <NAK> reply) client tries to resend data for specified number
-        of `attempts`. If no attempts left, client terminates his session."""
-        if attempts <= 0:
-            try:
-                self.emitter.send(False)
-            except StopIteration:
-                pass
-            finally:
-                self.terminate()
-        else:
-            self.push(data)
+    def push(self, data, with_timer=True):
+        """Pushes data on to the channel's fifo to ensure its transmission with
+        optional timer. Timer is used to control receiving response for sent
+        data within specified time frame. If it's doesn't :meth:`on_timeout`
+        method will be called and data may be sent once again.
+
+        :param data: Sending data.
+        :type data: str
+
+        :param with_timer: Flag to use timer.
+        :type with_timer: bool
+        """
+        if with_timer:
+            self.start_timer()
+        super(Client, self).push(data)
 
     def set_transfer_state(self):
         self.terminator = 1
@@ -191,8 +193,25 @@ class Client(ASTMProtocol):
         return self.push_record(record)
 
     def on_nak(self):
-        self.remain_attempts -= 1
-        self.retry_push_or_fail(self._last_sent_data, self.remain_attempts)
+        if self.state == STATE.opened:
+            if self.remain_attempts:
+                self.remain_attempts -= 1
+                log.warn('ENQ was rejected, retrying... (attempts remains: %d)',
+                         self.remain_attempts)
+                return self.push(ENQ)
+            raise Rejected('Server reject session establishment.')
+        elif self.state == STATE.transfer:
+            try:
+                record = self.emitter.send(False)
+                if record is not None:
+                    return self.push_record(record)
+            except StopIteration:
+                pass
+            except Exception:
+                self.terminate()
+                raise
+        else:
+            raise InvalidState('Client is not ready to accept NAK.')
 
     def on_eot(self):
         raise NotAccepted('Client should not receive EOT.')
@@ -214,5 +233,5 @@ class Client(ASTMProtocol):
 
     def on_termination(self):
         """Calls on transfer termination. Resets client state to INIT (0)."""
-        self.push(EOT)
+        self.push(EOT, with_timer=False)
         self.set_init_state()
