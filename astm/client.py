@@ -36,20 +36,22 @@ class Client(ASTMProtocol):
     :param serve_forever: Start over emitter after transfer termination.
     :type serve_forever: bool
 
-    :param timeout: send/recv operation timeout value. If :const:`None` it will
-                    be disabled.
+    :param timeout: Time to wait for response from server. If response wasn't
+                    received, the :meth:`on_timeout` will be called.
+                    If :const:`None` this timer will be disabled.
     :type timeout: int
+
+    :param retry_attempts: Number or attempts to send record to server.
+    :type retry_attempts: int
     """
 
-    #: Number or attempts to send record to server.
-    retry_attempts = 3 # actually useless thing, but specification requires it.
-
     def __init__(self, emitter, host='localhost', port=15200,
-                 serve_forever=False, timeout=20):
+                 serve_forever=False, timeout=20, retry_attempts=3):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
         self._emitter = emitter
+        self.retry_attempts = retry_attempts
         self._retry_attempts = self.retry_attempts
         self._serve_forever = serve_forever
         self.set_init_state()
