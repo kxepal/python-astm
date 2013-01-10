@@ -49,6 +49,7 @@ class RequestHandlerTestCase(unittest.TestCase):
         sys.stderr = open(os.devnull, 'w')
 
     def tearDown(self):
+        sys.stderr.close()
         sys.stderr = self.stderr
         pass
 
