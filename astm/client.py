@@ -90,41 +90,40 @@ class Client(ASTMProtocol):
         self.on_start()
         loop(*args, **kwargs)
 
-    def terminate(self):
-        """Terminates client data transfer by sending <EOT> message to server.
+    def push_record(self, record):
+        """Sends single ASTM record and autoincrement frame sequence number.
 
-        If `server_forever` argument was passed on `Client` initialization,
-        after `state_reset_timeout` :meth:`start` will be called once again.
-        Otherwise connection with server will be closed.
+        :param record: ASTM record object.
+        :type record: list or :class:`~astm.mapping.Record`
+
+        Records should be sent in specific order or :exc:`AssertionError` will
+        be raised:
+
+        Legend:
+
+        - ``H``: :class:`~astm.records.HeaderRecord`
+        - ``P``: :class:`~astm.records.PatientRecord`
+        - ``O``: :class:`~astm.records.OrderRecord`
+        - ``R``: :class:`~astm.records.ResultRecord`
+        - ``C``: :class:`~astm.records.CommentRecord`
+        - ``L``: :class:`~astm.records.TerminatorRecord`
+
+        +--------------------------------+-------------------------------------+
+        | Previous record type           | Current record type                 |
+        +================================+=====================================+
+        | None, this is first record     | ``H``                               |
+        +--------------------------------+-------------------------------------+
+        | ``H``                          | ``P``, ``L``                        |
+        +--------------------------------+-------------------------------------+
+        | ``P``                          | ``P``, ``O``, ``C``, ``L``          |
+        +--------------------------------+-------------------------------------+
+        | ``O``                          | ``O``, ``R``, ``C``, ``L``          |
+        +--------------------------------+-------------------------------------+
+        | ``R``                          | ``R``, ``C``, ``L``                 |
+        +--------------------------------+-------------------------------------+
+        | ``L``                          | ``H``                               |
+        +--------------------------------+-------------------------------------+
         """
-        self.on_termination()
-        if self._serve_forever:
-            if self.timeout is not None:
-                time.sleep(self.timeout)
-            self.on_start()
-        else:
-            self.close()
-
-    def on_enq(self):
-        raise NotAccepted('Client should not receive ENQ.')
-
-    def on_ack(self):
-        if self.state not in [STATE.opened, STATE.transfer]:
-            raise InvalidState('Client is not ready to accept ACK.')
-        self.retry_attempts = self._retry_attempts
-        if self.state == STATE.opened:
-            self.set_transfer_state()
-            for record in self.emitter:
-                break
-            else:
-                self.terminate()
-                return
-        elif self.state == STATE.transfer:
-            try:
-                record = self.emitter.send(True)
-            except StopIteration:
-                self.terminate()
-                return
         state = self._transfer_state
         self._last_seq += 1
         mtype = record[0]
@@ -152,6 +151,44 @@ class Client(ASTMProtocol):
         data = encode_message(self._last_seq, [record])
         self.push(data)
         self._transfer_state = state
+
+    def terminate(self):
+        """Terminates client data transfer by sending <EOT> message to server.
+
+        If `server_forever` argument was passed on `Client` initialization,
+        after `state_reset_timeout` :meth:`start` will be called once again.
+        Otherwise connection with server will be closed.
+        """
+        self.on_termination()
+        if self._serve_forever:
+            if self.timeout is not None:
+                time.sleep(self.timeout)
+            self.on_start()
+        else:
+            self.close()
+
+    def on_enq(self):
+        raise NotAccepted('Client should not receive ENQ.')
+
+    def on_ack(self):
+        if self.state == STATE.opened:
+            self.set_transfer_state()
+            for record in self.emitter:
+                break
+            else:
+                self.terminate()
+                return
+        elif self.state == STATE.transfer:
+            try:
+                record = self.emitter.send(True)
+            except StopIteration:
+                self.terminate()
+                return
+        else:
+            raise InvalidState('Client is not ready to accept ACK.')
+
+        self.retry_attempts = self._retry_attempts
+        return self.push_record(record)
 
     def on_nak(self):
         self.retry_attempts -= 1
