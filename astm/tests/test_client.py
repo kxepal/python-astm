@@ -15,6 +15,11 @@ from astm.tests.utils import DummyMixIn, track_call
 
 
 class DummyClient(DummyMixIn, Client):
+
+    def __init__(self, *args, **kwargs):
+        super(DummyClient, self).__init__(*args, **kwargs)
+        self.timeout = None
+
     def create_socket(self, family, type):
         pass
 
