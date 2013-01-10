@@ -194,12 +194,7 @@ class Client(ASTMProtocol):
 
     def on_nak(self):
         if self.state == STATE.opened:
-            if self.remain_attempts:
-                self.remain_attempts -= 1
-                log.warn('ENQ was rejected, retrying... (attempts remains: %d)',
-                         self.remain_attempts)
-                return self.push(ENQ)
-            raise Rejected('Server reject session establishment.')
+            return self._retry_enq()
         elif self.state == STATE.transfer:
             try:
                 record = self.emitter.send(False)
@@ -235,3 +230,15 @@ class Client(ASTMProtocol):
         """Calls on transfer termination. Resets client state to INIT (0)."""
         self.push(EOT, with_timer=False)
         self.set_init_state()
+
+    def on_timeout(self):
+        if self.state == STATE.opened:
+            return self._retry_enq()
+
+    def _retry_enq(self):
+        if self.remain_attempts:
+            self.remain_attempts -= 1
+            log.warn('ENQ was rejected, retrying... (attempts remains: %d)',
+                     self.remain_attempts)
+            return self.push(ENQ)
+        raise Rejected('Server reject session establishment.')
