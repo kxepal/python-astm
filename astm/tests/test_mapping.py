@@ -702,7 +702,7 @@ class MappingTestCase(unittest.TestCase):
         obj = self.Dummy('foo', [3, 2, 1])
         self.assertEqual(obj.to_astm(), ['foo', ['3', '2', '1']])
         obj = self.Thing(numbers=[[4, 2], [2, 3], [0, 1]])
-        self.assertEqual(obj.to_astm(), [['4', '2'], ['2', '3'], ['0', '1']])
+        self.assertEqual(obj.to_astm(), [[['4', '2'], ['2', '3'], ['0', '1']]])
 
     def test_required_field(self):
         class Dummy(mapping.Mapping):
