@@ -51,8 +51,8 @@ class Client(ASTMProtocol):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
         self._emitter = emitter
+        self.remain_attempts = retry_attempts
         self.retry_attempts = retry_attempts
-        self._retry_attempts = self.retry_attempts
         self._serve_forever = serve_forever
         self.set_init_state()
 
@@ -187,12 +187,12 @@ class Client(ASTMProtocol):
         else:
             raise InvalidState('Client is not ready to accept ACK.')
 
-        self.retry_attempts = self._retry_attempts
+        self.remain_attempts = self.retry_attempts
         return self.push_record(record)
 
     def on_nak(self):
-        self.retry_attempts -= 1
-        self.retry_push_or_fail(self._last_sent_data, self.retry_attempts)
+        self.remain_attempts -= 1
+        self.retry_push_or_fail(self._last_sent_data, self.remain_attempts)
 
     def on_eot(self):
         raise NotAccepted('Client should not receive EOT.')

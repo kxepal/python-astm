@@ -77,10 +77,10 @@ class ClientTestCase(unittest.TestCase):
     def test_retry_on_nak(self):
         client = DummyClient(emitter)
         client._last_sent_data = 'foo'
-        attempts_was = client.retry_attempts
+        attempts_was = client.remain_attempts
         client.retry_push_or_fail = track_call(client.retry_push_or_fail)
         client.on_nak()
-        self.assertLess(client.retry_attempts, attempts_was)
+        self.assertLess(client.remain_attempts, attempts_was)
         self.assertTrue(client.retry_push_or_fail.was_called)
         self.assertEqual(client.outbox[0], 'foo')
 
@@ -88,10 +88,10 @@ class ClientTestCase(unittest.TestCase):
         client = DummyClient(emitter)
         client.set_opened_state()
         client._last_sent_data = 'foo'
-        client.retry_attempts = 1
+        client.remain_attempts = 1
         client.retry_push_or_fail = track_call(client.retry_push_or_fail)
         client.on_nak()
-        self.assertLessEqual(client.retry_attempts, 0)
+        self.assertLessEqual(client.remain_attempts, 0)
         self.assertTrue(client.retry_push_or_fail.was_called)
         self.assertEqual(client.state, protocol.STATE.init)
 
@@ -99,7 +99,7 @@ class ClientTestCase(unittest.TestCase):
         client = DummyClient(emitter)
         client.set_opened_state()
         client._last_sent_data = 'foo'
-        client.retry_attempts = 1
+        client.remain_attempts = 1
         client.retry_push_or_fail = track_call(client.retry_push_or_fail)
         client.on_nak()
         self.assertEqual(client.emitter.inbox[0], False)
