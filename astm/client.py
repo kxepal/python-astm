@@ -124,7 +124,7 @@ class Client(ASTMProtocol):
         | ``L``                          | ``H``                               |
         +--------------------------------+-------------------------------------+
         """
-        state = self._transfer_state
+        state = self._last_record_type
         self._last_seq += 1
         mtype = record[0]
         if state is None:
@@ -150,7 +150,7 @@ class Client(ASTMProtocol):
             state = None
         data = encode_message(self._last_seq, [record])
         self.push(data)
-        self._transfer_state = state
+        self._last_record_type = state
 
     def terminate(self):
         """Terminates client data transfer by sending <EOT> message to server.
@@ -202,7 +202,7 @@ class Client(ASTMProtocol):
 
     def on_init_state(self):
         self._last_seq = 0
-        self._transfer_state = None
+        self._last_record_type = None
 
     def on_opened_state(self):
         self.emitter = self._emitter()
