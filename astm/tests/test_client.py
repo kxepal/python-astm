@@ -86,6 +86,13 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
         self.assertEqual(client.outbox[0], constants.ENQ)
 
+    def test_retry_enq_request_on_timeout(self):
+        client = DummyClient(emitter)
+        client.set_opened_state()
+        client.on_timeout()
+        self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
+        self.assertEqual(client.outbox[0], constants.ENQ)
+
     def test_raise_exception_if_enq_was_not_accepted(self):
         client = DummyClient(emitter)
         client.set_opened_state()
