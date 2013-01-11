@@ -22,3 +22,7 @@ from .records import (
 from .protocol import ASTMProtocol
 from .client import Client
 from .server import RequestHandler, Server
+
+import logging
+log = logging.getLogger()
+log.addHandler(logging.NullHandler())
