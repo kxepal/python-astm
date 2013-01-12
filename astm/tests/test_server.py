@@ -51,7 +51,6 @@ class RequestHandlerTestCase(unittest.TestCase):
     def tearDown(self):
         sys.stderr.close()
         sys.stderr = self.stderr
-        pass
 
     def test_init_state(self):
         assert self.req.state == protocol.STATE.init
