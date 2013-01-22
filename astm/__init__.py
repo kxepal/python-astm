@@ -25,4 +25,9 @@ from .server import RequestHandler, Server
 
 import logging
 log = logging.getLogger()
-log.addHandler(logging.NullHandler())
+
+class NullHandler(logging.Handler):
+    def emit(self, *args, **kwargs):
+        pass
+
+log.addHandler(NullHandler())
