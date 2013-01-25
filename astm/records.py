@@ -64,7 +64,7 @@ HeaderRecord = Record.build(
     RepeatedComponentField(Component.build(
         ConstantField(name='_', default=''),
         TextField(name='__')
-    ), name='delimeter'),
+    ), name='delimeter', default=[[], ['', '&']]),
     # ^^^ workaround to define field:
     # ConstantField(name='delimeter', default='\^&'),
     NotUsedField(name='message_id'),
