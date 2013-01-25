@@ -133,19 +133,7 @@ class StateTestCase(unittest.TestCase):
         obj.on_transfer_state = track_call(obj.on_transfer_state)
         obj.set_transfer_state()
         self.assertTrue(obj.on_transfer_state.was_called)
-
-    def test_discard_input_buffers(self):
-        obj = DummyProto()
-        obj._last_recv_message = 'foo'
-        obj.discard_input_buffers()
-        self.assertEqual(obj._last_recv_message, None)
-
-    def test_discard_output_buffers(self):
-        obj = DummyProto()
-        obj._last_sent_message = 'foo'
-        obj.discard_output_buffers()
-        self.assertEqual(obj._last_sent_message, None)
-
+    
 
 class TimeoutTestCase(unittest.TestCase):
 
