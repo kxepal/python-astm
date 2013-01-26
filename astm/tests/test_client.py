@@ -110,7 +110,7 @@ class ClientTestCase(unittest.TestCase):
         client = DummyClient(emitter)
         client.set_opened_state()
         client.set_transfer_state()
-        client._last_record_type = 'order'
+        client.records_sm.state = 'O'
         client.emitter.put(['R'])
         client.on_nak()
         self.assertEqual(client.outbox[0][2], 'R')
@@ -153,7 +153,6 @@ class ClientOnAck(unittest.TestCase):
         client.emitter.put(['H'])
         client.on_ack()
         self.assertEqual(client.outbox[-1][2], 'H')
-        self.assertEqual(client._last_record_type, 'header')
         self.assertEqual(client._last_seq, 1)
 
     def test_fail_if_first_not_header(self):
@@ -184,7 +183,6 @@ class ClientOnAck(unittest.TestCase):
         client.on_ack()
         client.emitter.put(['L'])
         client.on_ack()
-        self.assertEqual(client._last_record_type, None)
 
     def test_raising_on_termination_event(self):
         client = DummyClient(emitter)
@@ -196,7 +194,6 @@ class ClientOnAck(unittest.TestCase):
         client.on_ack() # for H
         client.on_ack() # for L
         self.assertEqual(client.state, protocol.STATE.init)
-        self.assertEqual(client._last_record_type, None)
         self.assertTrue(client.on_termination.was_called)
 
     def test_raise_on_termination_event_if_nothing_to_emit(self):
@@ -216,7 +213,6 @@ class ClientOnAck(unittest.TestCase):
         self.assertEqual(client.emitter.inbox[0], True)
         self.assertEqual(len(client.emitter.inbox), 1)
         self.assertEqual(client.outbox[-1][2], 'P')
-        self.assertEqual(client._last_record_type, 'patient')
 
     def test_switch_to_order_tranfer_state(self):
         client = DummyClient(emitter)
@@ -229,7 +225,6 @@ class ClientOnAck(unittest.TestCase):
         client.on_ack()
         self.assertEqual(len(client.emitter.inbox), 2)
         self.assertEqual(client.outbox[-1][2], 'O')
-        self.assertEqual(client._last_record_type, 'order')
 
     def test_switch_to_result_tranfer_state(self):
         client = DummyClient(emitter)
@@ -244,7 +239,6 @@ class ClientOnAck(unittest.TestCase):
         client.on_ack()
         self.assertEqual(len(client.emitter.inbox), 3)
         self.assertEqual(client.outbox[-1][2], 'R')
-        self.assertEqual(client._last_record_type, 'result')
 
     def test_switch_to_none_tranfer_state(self):
         client = DummyClient(emitter)
@@ -261,7 +255,6 @@ class ClientOnAck(unittest.TestCase):
         client.on_ack()
         self.assertEqual(len(client.emitter.inbox), 4)
         self.assertEqual(client.outbox[-1][2], 'L')
-        self.assertEqual(client._last_record_type, None)
 
     def test_send_record_instance(self):
         client = DummyClient(emitter)

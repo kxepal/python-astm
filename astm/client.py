@@ -21,6 +21,37 @@ log = logging.getLogger(__name__)
 
 __all__ = ['Client']
 
+
+class RecordsStateMachine(object):
+
+    def __init__(self, mapping):
+        self.mapping = mapping
+        self.state = None
+
+    def __call__(self, state):
+        if state is not None:
+            assert self.is_acceptable(state),\
+                   'invalid state %r, expected one of: %r' \
+                   % (state, self.mapping[self.state])
+        self.state = state
+
+    def is_acceptable(self, state):
+        if state not in self.mapping:
+            return False
+        next_types = self.mapping[self.state]
+        return '*' in next_types or state in next_types
+
+
+_default_sm = RecordsStateMachine({
+    None: ['H'],
+    'H': ['C', 'P', 'L'],
+    'P': ['C', 'O', 'L'],
+    'O': ['C', 'P', 'O', 'R', 'L'],
+    'R': ['C', 'P', 'O', 'R', 'L'],
+    'C': ['*'],
+    'L': []
+})
+
 class Client(ASTMProtocol):
     """Common ASTM client implementation.
 
@@ -43,10 +74,17 @@ class Client(ASTMProtocol):
 
     :param retry_attempts: Number or attempts to send record to server.
     :type retry_attempts: int
+
+    :param records_sm: Records type state machine that controls right order
+                       of generated records by the emitter. The default state
+                       machine may be replaced by any callable which takes
+                       single argument as record type.
+    :type: callable
     """
 
     def __init__(self, emitter, host='localhost', port=15200,
-                 serve_forever=False, timeout=20, retry_attempts=3):
+                 serve_forever=False, timeout=20, retry_attempts=3,
+                 records_sm=_default_sm):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
@@ -54,6 +92,7 @@ class Client(ASTMProtocol):
         self.remain_attempts = retry_attempts
         self.retry_attempts = retry_attempts
         self._serve_forever = serve_forever
+        self.records_sm = records_sm
         self.set_init_state()
 
     def emit_header(self):
@@ -126,33 +165,12 @@ class Client(ASTMProtocol):
         | ``L``                          | ``H``                               |
         +--------------------------------+-------------------------------------+
         """
-        state = self._last_record_type
         self._last_seq += 1
-        mtype = record[0]
-        if state is None:
-            assert mtype == 'H', mtype
-            state = 'header'
-        elif state == 'header':
-            assert mtype in ['P', 'L']
-            if mtype == 'P':
-                state = 'patient'
-        elif state == 'patient':
-            assert mtype in ['P', 'O', 'C', 'L']
-            if mtype == 'O':
-                state = 'order'
-        elif state == 'order':
-            assert mtype in ['O', 'C', 'M', 'R', 'L']
-            if mtype == 'R':
-                state = 'result'
-        elif state == 'result':
-            assert mtype in ['R', 'C', 'L']
+        self.records_sm(record[0])
         if isinstance(record, Record):
             record = record.to_astm()
-        if mtype == 'L':
-            state = None
         data = encode_message(self._last_seq, [record])
         self.push(data)
-        self._last_record_type = state
 
     def terminate(self):
         """Terminates client data transfer by sending <EOT> message to server.
@@ -216,7 +234,7 @@ class Client(ASTMProtocol):
 
     def on_init_state(self):
         self._last_seq = 0
-        self._last_record_type = None
+        self.records_sm(None)
 
     def on_opened_state(self):
         self.emitter = self._emitter()
