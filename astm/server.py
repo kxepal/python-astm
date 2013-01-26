@@ -142,8 +142,3 @@ class Server(Dispatcher):
         sock, addr = pair
         self.request(addr[0], addr[1], sock)
         super(Server, self).handle_accept()
-
-    def start(self, *args, **kwargs):
-        """Starts server by entering in a pooling
-        :func:`loop <astm.asynclib.loop>`."""
-        loop(*args, **kwargs)
