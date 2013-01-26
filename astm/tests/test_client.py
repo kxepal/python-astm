@@ -8,10 +8,10 @@
 #
 
 import unittest
-from astm.exceptions import NotAccepted, InvalidState, Rejected
+from astm.exceptions import NotAccepted, Rejected
 from astm.client import Client
-from astm import constants, protocol, records
-from astm.tests.utils import DummyMixIn, track_call
+from astm import constants, protocol
+from astm.tests.utils import DummyMixIn
 
 
 class DummyClient(DummyMixIn, Client):
@@ -54,6 +54,10 @@ class emitter(object):
         self.outbox.append(record)
 
 
+def simple_emitter(session):
+    with session():
+        yield
+
 
 class ClientTestCase(unittest.TestCase):
 
@@ -62,9 +66,9 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.state, protocol.STATE.init)
 
     def test_open_connection(self):
-        client = DummyClient(emitter)
-        client.start()
-        self.assertEqual(client.state, protocol.STATE.opened)
+        client = DummyClient(simple_emitter)
+        client.handle_connect()
+        self.assertEqual(client.state, protocol.STATE.init)
         self.assertEqual(client.outbox[0], constants.ENQ)
 
     def test_fail_on_enq(self):
@@ -80,188 +84,188 @@ class ClientTestCase(unittest.TestCase):
         self.assertRaises(NotAccepted, client.on_message)
 
     def test_retry_enq_request(self):
-        client = DummyClient(emitter)
-        client.set_opened_state()
+        client = DummyClient(simple_emitter)
+        client.handle_connect()
         client.on_nak()
         self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
         self.assertEqual(client.outbox[0], constants.ENQ)
 
     def test_retry_enq_request_on_timeout(self):
-        client = DummyClient(emitter)
-        client.set_opened_state()
+        client = DummyClient(simple_emitter)
+        client.handle_connect()
         client.on_timeout()
         self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
         self.assertEqual(client.outbox[0], constants.ENQ)
 
     def test_raise_exception_if_enq_was_not_accepted(self):
-        client = DummyClient(emitter)
-        client.set_opened_state()
+        client = DummyClient(simple_emitter)
+        client.handle_connect()
         client.remain_attempts = 0
         self.assertRaises(Rejected, client.on_nak)
 
     def test_callback_on_sent_failure(self):
         client = DummyClient(emitter)
-        client.set_opened_state()
+        client.handle_connect()
         client.set_transfer_state()
         client.on_nak()
         self.assertEqual(client.emitter.inbox[0], False)
 
     def test_emitter_may_send_new_record_after_nak_response(self):
         client = DummyClient(emitter)
-        client.set_opened_state()
+        client.handle_connect()
         client.set_transfer_state()
         client.records_sm.state = 'O'
         client.emitter.put(['R'])
         client.on_nak()
-        self.assertEqual(client.outbox[0][2], 'R')
-
-    def test_terminate_if_emitter_raises_exception_on_nak(self):
-        class emitter(object):
-            def send(self, value):
-                assert value
-                return super(emitter, self).send(value)
-        client = DummyClient(emitter)
-        client.set_opened_state()
-        client.set_transfer_state()
-        client.terminate = track_call(client.terminate)
-        self.assertRaises(AssertionError, client.on_nak)
-        self.assertEqual(client.state, protocol.STATE.init)
-
-    def test_dont_accept_nak_in_invalid_state(self):
-        client = DummyClient(emitter)
-        self.assertRaises(InvalidState, client.on_nak)
-
-    def test_serve_forever(self):
-        client = DummyClient(emitter, serve_forever=True, timeout=0)
-        client.start()
-        client.terminate()
-        self.assertEqual(list(client.outbox), [constants.ENQ,
-                                               constants.EOT,
-                                               constants.ENQ])
-        self.assertEqual(client.state, protocol.STATE.opened)
-
-
-class ClientOnAck(unittest.TestCase):
-
-    def test_fail_on_init_state(self):
-        client = DummyClient(emitter)
-        self.assertRaises(InvalidState, client.on_ack)
-
-    def test_first_header(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.on_ack()
-        self.assertEqual(client.outbox[-1][2], 'H')
-        self.assertEqual(client._last_seq, 1)
-
-    def test_fail_if_first_not_header(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['foo'])
-        self.assertRaises(AssertionError, client.on_ack)
-
-    def test_just_emit_first_on_opened_state(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.on_ack()
-        self.assertFalse(client.emitter.inbox)
-
-    def test_accept_patient_after_header(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.on_ack()
-        client.emitter.put(['P'])
-        client.on_ack()
-
-    def test_terminator_patient_after_header(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.on_ack()
-        client.emitter.put(['L'])
-        client.on_ack()
-
-    def test_raising_on_termination_event(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.on_termination = track_call(client.on_termination)
-        client.emitter.put(['H'])
-        client.emitter.put(['L'])
-        client.on_ack() # for ENQ
-        client.on_ack() # for H
-        client.on_ack() # for L
-        self.assertEqual(client.state, protocol.STATE.init)
-        self.assertTrue(client.on_termination.was_called)
-
-    def test_raise_on_termination_event_if_nothing_to_emit(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.on_termination = track_call(client.on_termination)
-        client.on_ack()
-        self.assertTrue(client.on_termination.was_called)
-
-    def test_send_back_result_for_header(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.emitter.put(['P'])
-        client.on_ack()
-        client.on_ack()
-        self.assertEqual(client.emitter.inbox[0], True)
-        self.assertEqual(len(client.emitter.inbox), 1)
-        self.assertEqual(client.outbox[-1][2], 'P')
-
-    def test_switch_to_order_tranfer_state(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.emitter.put(['P'])
-        client.emitter.put(['O'])
-        client.on_ack()
-        client.on_ack()
-        client.on_ack()
-        self.assertEqual(len(client.emitter.inbox), 2)
-        self.assertEqual(client.outbox[-1][2], 'O')
-
-    def test_switch_to_result_tranfer_state(self):
-        client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.emitter.put(['P'])
-        client.emitter.put(['O'])
-        client.emitter.put(['R'])
-        client.on_ack()
-        client.on_ack()
-        client.on_ack()
-        client.on_ack()
-        self.assertEqual(len(client.emitter.inbox), 3)
         self.assertEqual(client.outbox[-1][2], 'R')
 
-    def test_switch_to_none_tranfer_state(self):
+    def test_empty_emitter(self):
+        def emitter(session):
+            with session():
+                if False:
+                    yield
         client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(['H'])
-        client.emitter.put(['P'])
-        client.emitter.put(['O'])
-        client.emitter.put(['R'])
-        client.emitter.put(['L'])
-        client.on_ack()
-        client.on_ack()
-        client.on_ack()
-        client.on_ack()
-        client.on_ack()
-        self.assertEqual(len(client.emitter.inbox), 4)
-        self.assertEqual(client.outbox[-1][2], 'L')
+        client.handle_connect()
+        self.assertEqual(list(client.outbox),
+            [constants.ENQ, constants.EOT, None])
 
-    def test_send_record_instance(self):
+    def test_early_yield(self):
+        def emitter(session):
+            yield
+            with session():
+                if False:
+                    yield
         client = DummyClient(emitter)
-        client.start()
-        client.emitter.put(records.HeaderRecord())
+        client.handle_connect()
+        self.assertEqual(list(client.outbox), [])
+
+    def test_late_ack(self):
+        def emitter(session):
+            with session():
+                if False:
+                    yield
+        client = DummyClient(emitter)
+        client.handle_connect()
         client.on_ack()
-        self.assertEqual(client.outbox[-1][2], 'H')
+        client.on_ack()
+
+    def test_dummy_usage(self):
+        def emitter(session):
+            with session():
+                ok = yield ['P']
+                assert ok
+                ok = yield ['O']
+                assert ok
+        client = DummyClient(emitter)
+        client.handle_connect()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_ack()
+        self.assertEqual(client.outbox[-1][1:3], '1H')
+        client.on_ack()
+        self.assertEqual(client.outbox[-1][1:3], '2P')
+        client.on_ack()
+        self.assertEqual(client.outbox[-1][1:3], '3O')
+        client.on_ack()
+        self.assertEqual(client.outbox[-3][1:3], '4L')
+        self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], None)
+
+    def test_reject_header(self):
+        def emitter(session):
+            with session():
+                yield ['P']
+                yield ['O']
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        self.assertRaises(Rejected, client.on_nak)
+
+    def test_retry_enq_on_nak(self):
+        def emitter(session):
+            with session():
+                yield ['P']
+                yield ['O']
+        client = DummyClient(emitter)
+        client.handle_connect()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_nak()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_nak()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        self.assertEqual(list(client.outbox), [constants.ENQ]*3)
+
+    def test_nak_callback(self):
+        def emitter(session):
+            with session():
+                ok = yield ['P']
+                assert not ok
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        client.on_ack()
+        client.on_nak()
+
+    def test_emit_after_nak(self):
+        def emitter(session):
+            with session():
+                ok = yield ['P']
+                assert not ok
+                yield ['O']
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        client.on_ack()
+        client.on_nak()
+        client.on_ack()
+
+    def test_terminate_on_exception_after_nake(self):
+        def emitter(session):
+            with session():
+                ok = yield ['P']
+                assert ok
+                yield ['O']
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        client.on_ack()
+        self.assertRaises(AssertionError, client.on_nak)
+        self.assertEqual(client.outbox[-1], None)
+
+
+    def test_messages_workflow(self):
+        def emitter(session):
+            with session():
+                yield ['C']
+                yield ['P']
+                yield ['O']
+                yield ['O']
+                yield ['P']
+                yield ['C']
+                yield ['O']
+                yield ['O']
+                yield ['C']
+                yield ['R']
+                yield ['C']
+                yield ['R']
+                yield ['R']
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        while client.state != protocol.STATE.init:
+            client.on_ack()
+
+    def test_session_in_loop(self):
+        def emitter(session):
+            for i in range(2):
+                with session():
+                    yield ['P']
+                    yield ['O']
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        while client.state != protocol.STATE.init:
+            client.on_ack()
+
 
 
 if __name__ == '__main__':
