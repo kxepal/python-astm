@@ -11,16 +11,19 @@ import os
 import sys
 import unittest
 from astm.exceptions import NotAccepted, InvalidState
-from astm.server import RequestHandler
+from astm.server import RequestHandler, BaseRecordsDispatcher
 from astm import codec, constants, protocol, records
 from astm.tests.utils import DummyMixIn, track_call
+
+def null_dispatcher(*args, **kwargs):
+    pass
 
 
 class DummyRequestHandler(DummyMixIn, RequestHandler):
     dummy_dispatcher_called_time = 0
 
     def __init__(self):
-        RequestHandler.__init__(self, 'localhost', 15200, None)
+        RequestHandler.__init__(self, None, null_dispatcher)
 
     def process_message(self, seq, records, cs):
         pass
@@ -119,6 +122,37 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(self.req.outbox[-1], constants.NAK)
         self.assertEqual(self.req._input_buffer, '')
 
+
+class RecordsDispatcherTestCase(unittest.TestCase):
+
+    def setUp(self):
+        d = BaseRecordsDispatcher()
+        d.dispatch['H'] = track_call(d.dispatch['H'])
+        d.dispatch['P'] = track_call(d.dispatch['P'])
+        d.dispatch['O'] = track_call(d.dispatch['O'])
+        d.dispatch['R'] = track_call(d.dispatch['R'])
+        d.dispatch['L'] = track_call(d.dispatch['L'])
+        self.dispatcher = d
+
+    def test_dispatch_header(self):
+        self.dispatcher(None, [['H']], None)
+        self.assertTrue(self.dispatcher.dispatch['H'].was_called)
+
+    def test_dispatch_patient(self):
+        self.dispatcher(None, [['P']], None)
+        self.assertTrue(self.dispatcher.dispatch['P'].was_called)
+
+    def test_dispatch_order(self):
+        self.dispatcher(None, [['O']], None)
+        self.assertTrue(self.dispatcher.dispatch['O'].was_called)
+
+    def test_dispatch_result(self):
+        self.dispatcher(None, [['R']], None)
+        self.assertTrue(self.dispatcher.dispatch['R'].was_called)
+
+    def test_dispatch_terminator(self):
+        self.dispatcher(None, [['L']], None)
+        self.assertTrue(self.dispatcher.dispatch['L'].was_called)
 
 
 if __name__ == '__main__':

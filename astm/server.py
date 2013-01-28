@@ -17,25 +17,55 @@ from .protocol import ASTMProtocol, STATE
 
 log = logging.getLogger(__name__)
 
-__all__ = ['RequestHandler', 'Server']
+__all__ = ['BaseRecordsDispatcher', 'RequestHandler', 'Server']
+
+
+class BaseRecordsDispatcher(object):
+    """Dispatcher of received ASTM records by :class:`RequestHandler`."""
+    def __init__(self):
+        self.dispatch = {
+            'H': self.on_header,
+            'P': self.on_patient,
+            'O': self.on_order,
+            'R': self.on_result,
+            'L': self.on_terminator
+        }
+
+    def __call__(self, seq, records, cs):
+        for record in records:
+            self.dispatch[record[0]](record)
+
+    def on_header(self, record):
+        """Header record handler."""
+
+    def on_patient(self, record):
+        """Patient record handler."""
+
+    def on_order(self, record):
+        """Order record handler."""
+
+    def on_result(self, record):
+        """Result record handler."""
+
+    def on_terminator(self, record):
+        """Terminator record handler."""
+
 
 class RequestHandler(ASTMProtocol):
     """ASTM protocol request handler.
 
-    :param host: Client IP address or hostname.
-    :type host: str
-
-    :param port: Client port number.
-    :type port: int
-
     :param sock: Socket object.
+
+    :param dispatcher: Request handler records dispatcher instance.
+    :type dispatcher: :class:`BaseRecordsDispatcher`
     """
-    def __init__(self, sock):
+    def __init__(self, sock, dispatcher):
         super(RequestHandler, self).__init__(sock)
         self.set_init_state()
         self._chunks = []
-        host, port = sock.getpeername()
+        host, port = sock.getpeername() if sock is not None else (None, None)
         self.client_info = {'host': host, 'port': port}
+        self.dispatcher = dispatcher
 
     def on_enq(self):
         if self.state == STATE.init:
@@ -82,7 +112,7 @@ class RequestHandler(ASTMProtocol):
             self.process_message(*decode_message(message))
 
     def process_message_chunk(self, seq, records, cs):
-        """Abstract ASTM message chunk processor.
+        """Abstract ASTM message chunk processor. Does nothing by default.
 
         :param seq: Frame sequence number.
         :type seq: int
@@ -97,7 +127,8 @@ class RequestHandler(ASTMProtocol):
         pass
 
     def process_message(self, seq, records, cs):
-        """Abstract ASTM message processor.
+        """ASTM message processor. Delegates this process to related local
+         :class:`BaseRecordsDispatcher` instance.
 
         :param seq: Frame sequence number.
         :type seq: int
@@ -108,7 +139,7 @@ class RequestHandler(ASTMProtocol):
         :param cs: Checksum
         :type cs: str
         """
-        raise NotImplementedError
+        self.dispatcher(seq, records, cs)
 
     def discard_input_buffers(self):
         self._chunks = []
@@ -126,8 +157,12 @@ class Server(Dispatcher):
 
     :param request: Server request handler.
     :type request: :class:`RequestHandler`
+
+    :param dispatcher: Request handler records dispatcher class.
+    :type dispatcher: :class:`BaseRecordsDispatcher`
     """
-    def __init__(self, host='localhost', port=15200, request=RequestHandler):
+    def __init__(self, host='localhost', port=15200,
+                 request=RequestHandler, dispatcher=BaseRecordsDispatcher):
         super(Server, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
@@ -135,11 +170,12 @@ class Server(Dispatcher):
         self.listen(5)
         self.pool = []
         self.request = request
+        self.dispatcher = dispatcher
 
     def handle_accept(self):
         pair = self.accept()
         if pair is None:
             return
         sock, addr = pair
-        self.request(sock)
+        self.request(sock, self.dispatcher())
         super(Server, self).handle_accept()
