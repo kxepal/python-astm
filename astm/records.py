@@ -351,6 +351,6 @@ CommentRecord = Record.build(
 #:
 TerminatorRecord = Record.build(
     ConstantField(name='type', default='L'),
-    ConstantField(name='seq', default='1'),
+    ConstantField(name='seq', default=1),
     ConstantField(name='code', default='N')
 )
