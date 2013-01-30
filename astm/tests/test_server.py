@@ -107,7 +107,7 @@ class RequestHandlerTestCase(unittest.TestCase):
     def test_join_chunks_on_last_one(self):
         self.req.state = protocol.STATE.transfer
         self.req.is_chunked_transfer = False
-        self.req._chunks = ['']
+        self.req._chunks = [b'']
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                  .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)

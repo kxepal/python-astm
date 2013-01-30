@@ -117,7 +117,7 @@ class ClientTestCase(unittest.TestCase):
         client.records_sm.state = 'O'
         client.emitter.put(['R'])
         client.on_nak()
-        self.assertEqual(client.outbox[-1][2], 'R')
+        self.assertEqual(client.outbox[-1][2:3], b'R')
 
     def test_empty_emitter(self):
         def emitter(session):
@@ -160,13 +160,13 @@ class ClientTestCase(unittest.TestCase):
         client.handle_connect()
         self.assertEqual(client.outbox[-1], constants.ENQ)
         client.on_ack()
-        self.assertEqual(client.outbox[-1][1:3], '1H')
+        self.assertEqual(client.outbox[-1][1:3], b'1H')
         client.on_ack()
-        self.assertEqual(client.outbox[-1][1:3], '2P')
+        self.assertEqual(client.outbox[-1][1:3], b'2P')
         client.on_ack()
-        self.assertEqual(client.outbox[-1][1:3], '3O')
+        self.assertEqual(client.outbox[-1][1:3], b'3O')
         client.on_ack()
-        self.assertEqual(client.outbox[-3][1:3], '4L')
+        self.assertEqual(client.outbox[-3][1:3], b'4L')
         self.assertEqual(client.outbox[-2], constants.EOT)
         self.assertEqual(client.outbox[-1], None)
 

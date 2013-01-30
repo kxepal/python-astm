@@ -85,7 +85,7 @@ class DispatcherTestCase(unittest.TestCase):
     def test_default_hanlder(self):
         obj = DummyProto()
         obj.default_handler = track_call(obj.default_handler)
-        self.assertRaises(ValueError, obj.dispatch, 'foo')
+        self.assertRaises(ValueError, obj.dispatch, b'foo')
         self.assertTrue(obj.default_handler.was_called)
 
     def test_push_event_response(self):
