@@ -25,12 +25,6 @@ class DummyRequestHandler(DummyMixIn, RequestHandler):
     def __init__(self):
         RequestHandler.__init__(self, None, null_dispatcher)
 
-    def process_message(self, seq, records, cs):
-        pass
-
-    def process_message_chunk(self, seq, records, cs):
-        pass
-
     def default_handler(self, data):
         return constants.NAK
 
