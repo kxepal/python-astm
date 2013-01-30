@@ -9,8 +9,12 @@
 
 import datetime
 import unittest
-from astm import decode_record
+from astm import codec
 from astm import omnilab
+from astm.constants import ENCODING
+
+decode_record = lambda r: codec.decode_record(r.encode(), ENCODING)
+encode_record = lambda r: codec.encode_record(r, ENCODING)
 
 
 class OmnilabTestCase(unittest.TestCase):
@@ -173,14 +177,14 @@ class OmnilabTestCase(unittest.TestCase):
         data = 'L|1|N'
         term = omnilab.client.Terminator(*decode_record(data))
         self.assertEqual(term.type, 'L')
-        self.assertEqual(term.seq, '1')
+        self.assertEqual(term.seq, 1)
         self.assertEqual(term.code, 'N')
 
     def test_terminator_response(self):
         data = 'L|1|N'
         term = omnilab.server.Terminator(*decode_record(data))
         self.assertEqual(term.type, 'L')
-        self.assertEqual(term.seq, '1')
+        self.assertEqual(term.seq, 1)
         self.assertEqual(term.code, 'N')
 
     def test_sample_check_in(self):
