@@ -7,6 +7,7 @@
 # you should have received as part of this distribution.
 #
 
+from astm import __version__
 from astm.mapping import (
     Component, ConstantField, ComponentField, DateField, DateTimeField,
     IntegerField, SetField, TextField
@@ -25,8 +26,8 @@ from astm.records import (
 #: :type version: str
 #:
 Sender = Component.build(
-    TextField(name='name'),
-    TextField(name='version')
+    TextField(name='name', default='python-astm'),
+    TextField(name='version', default=__version__)
 )
 
 
