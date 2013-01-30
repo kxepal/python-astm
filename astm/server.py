@@ -26,6 +26,7 @@ class BaseRecordsDispatcher(object):
         self.encoding = encoding
         self.dispatch = {
             'H': self.on_header,
+            'C': self.on_comment,
             'P': self.on_patient,
             'O': self.on_order,
             'R': self.on_result,
@@ -39,6 +40,9 @@ class BaseRecordsDispatcher(object):
 
     def on_header(self, record):
         """Header record handler."""
+
+    def on_comment(self, record):
+        """Comment record handler."""
 
     def on_patient(self, record):
         """Patient record handler."""

@@ -118,17 +118,19 @@ class RecordsDispatcherTestCase(unittest.TestCase):
 
     def setUp(self):
         d = BaseRecordsDispatcher()
-        d.dispatch['H'] = track_call(d.dispatch['H'])
-        d.dispatch['P'] = track_call(d.dispatch['P'])
-        d.dispatch['O'] = track_call(d.dispatch['O'])
-        d.dispatch['R'] = track_call(d.dispatch['R'])
-        d.dispatch['L'] = track_call(d.dispatch['L'])
+        for key, value in d.dispatch.items():
+            d.dispatch[key] = track_call(value)
         self.dispatcher = d
 
     def test_dispatch_header(self):
         message = codec.encode_message(1, ['H'], 'ascii')
         self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['H'].was_called)
+
+    def test_dispatch_comment(self):
+        message = codec.encode_message(1, ['C'], 'ascii')
+        self.dispatcher(message)
+        self.assertTrue(self.dispatcher.dispatch['C'].was_called)
 
     def test_dispatch_patient(self):
         message = codec.encode_message(1, ['P'], 'ascii')
