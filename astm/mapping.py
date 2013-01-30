@@ -9,6 +9,7 @@
 
 import datetime
 import decimal
+import inspect
 import time
 import warnings
 from operator import itemgetter
@@ -490,14 +491,15 @@ class RepeatedComponentField(Field):
         def sort(self, cmp=None, key=None, reverse=False):
             raise NotImplementedError('In place sorting not allowed.')
 
-        # update docstrings from list
-        for item in dir():
-            if getattr(list, item, None) is None\
-            or item in ['__module__', '__doc__']:
-                continue
-            func = eval(item)
-            func.__doc__ = getattr(list, item).__doc__
-        del func, item
+    # update docstrings from list
+    for name, obj in inspect.getmembers(Proxy):
+        if getattr(list, name, None) is None\
+        or name in ['__module__', '__doc__']:
+            continue
+        if not inspect.isfunction(obj):
+            continue
+        obj.__doc__ = getattr(list, name).__doc__
+    del name, obj
 
     def _get_value(self, value):
         return self.Proxy(value, self.field)
