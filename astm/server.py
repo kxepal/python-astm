@@ -11,7 +11,7 @@ import logging
 import socket
 from .asynclib import Dispatcher
 from .codec import decode_message, is_chunked_message, join
-from .constants import ACK, NAK
+from .constants import ACK, NAK, ENCODING
 from .exceptions import InvalidState, NotAccepted
 from .protocol import ASTMProtocol, STATE
 
@@ -22,7 +22,8 @@ __all__ = ['BaseRecordsDispatcher', 'RequestHandler', 'Server']
 
 class BaseRecordsDispatcher(object):
     """Dispatcher of received ASTM records by :class:`RequestHandler`."""
-    def __init__(self):
+    def __init__(self, encoding=ENCODING):
+        self.encoding = encoding
         self.dispatch = {
             'H': self.on_header,
             'P': self.on_patient,
@@ -31,7 +32,8 @@ class BaseRecordsDispatcher(object):
             'L': self.on_terminator
         }
 
-    def __call__(self, seq, records, cs):
+    def __call__(self, message):
+        seq, records, cs = decode_message(message, self.encoding)
         for record in records:
             self.dispatch[record[0]](record)
 
@@ -103,43 +105,12 @@ class RequestHandler(ASTMProtocol):
             self.is_chunked_transfer = is_chunked_message(message)
         if self.is_chunked_transfer:
             self._chunks.append(message)
-            self.process_message_chunk(*decode_message(message, self.encoding))
         elif self._chunks:
             self._chunks.append(message)
-            self.process_message(*decode_message(join(self._chunks), self.encoding))
+            self.dispatcher(join(self._chunks))
             self._chunks = []
         else:
-            self.process_message(*decode_message(message, self.encoding))
-
-    def process_message_chunk(self, seq, records, cs):
-        """Abstract ASTM message chunk processor. Does nothing by default.
-
-        :param seq: Frame sequence number.
-        :type seq: int
-
-        :param records: List of ASTM records in message chunk.
-                        Last record might be incomplete.
-        :type records: list
-
-        :param cs: Checksum
-        :type cs: str
-        """
-        pass
-
-    def process_message(self, seq, records, cs):
-        """ASTM message processor. Delegates this process to related local
-         :class:`BaseRecordsDispatcher` instance.
-
-        :param seq: Frame sequence number.
-        :type seq: int
-
-        :param records: List of ASTM records in message.
-        :type records: list
-
-        :param cs: Checksum
-        :type cs: str
-        """
-        self.dispatcher(seq, records, cs)
+            self.dispatcher(message)
 
     def discard_input_buffers(self):
         self._chunks = []
@@ -158,11 +129,11 @@ class Server(Dispatcher):
     :param request: Server request handler.
     :type request: :class:`RequestHandler`
 
-    :param dispatcher: Request handler records dispatcher class.
+    :param dispatcher: Request handler records dispatcher instance.
     :type dispatcher: :class:`BaseRecordsDispatcher`
     """
     def __init__(self, host='localhost', port=15200,
-                 request=RequestHandler, dispatcher=BaseRecordsDispatcher):
+                 request=RequestHandler, dispatcher=BaseRecordsDispatcher()):
         super(Server, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
@@ -177,5 +148,5 @@ class Server(Dispatcher):
         if pair is None:
             return
         sock, addr = pair
-        self.request(sock, self.dispatcher())
+        self.request(sock, self.dispatcher)
         super(Server, self).handle_accept()

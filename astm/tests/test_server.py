@@ -46,8 +46,7 @@ class RequestHandlerTestCase(unittest.TestCase):
 
     def setUp(self):
         self.req = DummyRequestHandler()
-        self.req.process_message = track_call(self.req.process_message)
-        self.req.process_message_chunk = track_call(self.req.process_message_chunk)
+        self.req.dispatcher = track_call(self.req.dispatcher)
         self.stderr = sys.stderr
         sys.stderr = open(os.devnull, 'w')
 
@@ -85,14 +84,14 @@ class RequestHandlerTestCase(unittest.TestCase):
     def test_reject_message_on_parse_error(self):
         self.req.state = protocol.STATE.transfer
         self.assertEqual(self.req.on_message(), constants.NAK)
-        self.assertFalse(self.req.process_message.was_called)
+        self.assertFalse(self.req.dispatcher.was_called)
 
     def test_accept_message(self):
         self.req.state = protocol.STATE.transfer
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                         .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
-        self.assertTrue(self.req.process_message.was_called)
+        self.assertTrue(self.req.dispatcher.was_called)
         self.assertFalse(self.req._chunks)
 
     def test_accept_message_chunk(self):
@@ -101,7 +100,7 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                  .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
-        self.assertTrue(self.req.process_message_chunk.was_called)
+        self.assertFalse(self.req.dispatcher.was_called)
         self.assertTrue(self.req._chunks)
 
     def test_join_chunks_on_last_one(self):
@@ -111,8 +110,6 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                  .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
-        self.assertTrue(self.req.process_message.was_called)
-        self.assertFalse(self.req.process_message_chunk.was_called)
         self.assertFalse(self.req._chunks)
 
     def test_cleanup_input_buffer_on_message_reject(self):
@@ -135,23 +132,28 @@ class RecordsDispatcherTestCase(unittest.TestCase):
         self.dispatcher = d
 
     def test_dispatch_header(self):
-        self.dispatcher(None, [['H']], None)
+        message = codec.encode_message(1, ['H'], 'ascii')
+        self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['H'].was_called)
 
     def test_dispatch_patient(self):
-        self.dispatcher(None, [['P']], None)
+        message = codec.encode_message(1, ['P'], 'ascii')
+        self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['P'].was_called)
 
     def test_dispatch_order(self):
-        self.dispatcher(None, [['O']], None)
+        message = codec.encode_message(1, ['O'], 'ascii')
+        self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['O'].was_called)
 
     def test_dispatch_result(self):
-        self.dispatcher(None, [['R']], None)
+        message = codec.encode_message(1, ['R'], 'ascii')
+        self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['R'].was_called)
 
     def test_dispatch_terminator(self):
-        self.dispatcher(None, [['L']], None)
+        message = codec.encode_message(1, ['L'], 'ascii')
+        self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['L'].was_called)
 
 
