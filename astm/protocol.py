@@ -33,7 +33,6 @@ class ASTMProtocol(AsyncChat):
     #: Operation timeout value.
     timeout = None
 
-    use_encoding = True
     encoding = ENCODING
     strip_terminator = False
     _last_recv_data = None

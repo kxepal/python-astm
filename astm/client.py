@@ -186,7 +186,7 @@ class Client(ASTMProtocol):
         self.records_sm(record[0])
         if isinstance(record, Record):
             record = record.to_astm()
-        data = encode_message(self._last_seq, [record])
+        data = encode_message(self._last_seq, [record], self.encoding)
         self.push(data)
 
     def on_enq(self):

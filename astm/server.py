@@ -103,13 +103,13 @@ class RequestHandler(ASTMProtocol):
             self.is_chunked_transfer = is_chunked_message(message)
         if self.is_chunked_transfer:
             self._chunks.append(message)
-            self.process_message_chunk(*decode_message(message))
+            self.process_message_chunk(*decode_message(message, self.encoding))
         elif self._chunks:
             self._chunks.append(message)
-            self.process_message(*decode_message(join(self._chunks)))
+            self.process_message(*decode_message(join(self._chunks), self.encoding))
             self._chunks = []
         else:
-            self.process_message(*decode_message(message))
+            self.process_message(*decode_message(message, self.encoding))
 
     def process_message_chunk(self, seq, records, cs):
         """Abstract ASTM message chunk processor. Does nothing by default.

@@ -412,14 +412,14 @@ class Dispatcher(object):
                 # a closed connection is indicated by signaling
                 # a read condition, and having recv() return 0.
                 self.handle_close()
-                return ''
+                return b''
             else:
                 return data
         except socket.error as err:
             # winsock sometimes throws ENOTCONN
             if err.args[0] in _DISCONNECTED:
                 self.handle_close()
-                return ''
+                return b''
             else:
                 raise
 
@@ -597,7 +597,7 @@ class AsyncChat(Dispatcher):
 
     def __init__(self, sock=None, map=None):
         # for string terminator matching
-        self._input_buffer = ''
+        self._input_buffer = b''
         self.inbox = deque()
         self.outbox = deque()
         super(AsyncChat, self).__init__(sock, map)
@@ -654,7 +654,7 @@ class AsyncChat(Dispatcher):
             self.handle_error()
             return
 
-        if isinstance(data, bytes) and self.use_encoding:
+        if self.use_encoding and not isinstance():
             data = data.decode(self.encoding)
 
         self._input_buffer += data
@@ -777,13 +777,15 @@ class AsyncChat(Dispatcher):
         Returns ``True`` on success, ``False`` on error and ``None`` on closing
         event.
         """
+        if self.use_encoding and not isinstance(data, bytes):
+            data = data.encode(self.encoding)
         while True:
             if data is None:
                 self.handle_close()
                 return
 
             obs = self.send_buffer_size
-            bdata = buffer(data.encode(self.encoding), 0, obs)
+            bdata = buffer(data, 0, obs)
 
             try:
                 num_sent = self.send(bdata)
