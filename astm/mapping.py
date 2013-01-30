@@ -15,11 +15,10 @@ from operator import itemgetter
 from itertools import islice
 try:
     from itertools import izip, izip_longest
-    from .compat import bytes
 except ImportError: # Python 3
     from itertools import zip_longest as izip_longest
     izip = zip
-    from .compat import basestring, unicode, bytes, long
+    from .compat import basestring, unicode, long
 
 
 def make_string(value):
@@ -217,8 +216,9 @@ class ConstantField(Field):
         ...
     ValueError: Field changing not allowed
     """
-    def __init__(self, *args, **kwargs):
-        super(ConstantField, self).__init__(*args, **kwargs)
+    def __init__(self, name=None, default=None, field=Field()):
+        super(ConstantField, self).__init__(name, default, True, None)
+        self.field = field
         self.required = True
         if self.default is None:
             raise ValueError('Constant value should be defined')
@@ -227,6 +227,7 @@ class ConstantField(Field):
         return self.default
 
     def _set_value(self, value):
+        value = self.field._get_value(value)
         if self.default != value:
             raise ValueError('Field changing not allowed: got %r, accepts %r'
                             '' % (value, self.default))

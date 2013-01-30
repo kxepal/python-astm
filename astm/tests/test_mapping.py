@@ -312,8 +312,7 @@ class ConstantFieldTestCase(unittest.TestCase):
     def test_always_required(self):
         field = mapping.ConstantField(default='test')
         assert field.required
-        field = mapping.ConstantField(default='test', required=False)
-        assert field.required
+        self.assertRaises(TypeError, mapping.ConstantField, default='test', required=False)
 
     def test_default_value_should_be_defined(self):
         self.assertRaises(ValueError, mapping.ConstantField)
