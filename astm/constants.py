@@ -15,31 +15,31 @@ ENCODING = 'latin-1'
 MAX_MESSAGE_SIZE = None
 
 #: Message start token.
-STX = '\x02'
+STX = b'\x02'
 #: Message end token.
-ETX = '\x03'
+ETX = b'\x03'
 #: ASTM session termination token.
-EOT = '\x04'
+EOT = b'\x04'
 #: ASTM session initialization token.
-ENQ = '\x05'
+ENQ = b'\x05'
 #: Command accepted token.
-ACK = '\x06'
+ACK = b'\x06'
 #: Command rejected token.
-NAK = '\x15'
+NAK = b'\x15'
 #: Message chunk end token.
-ETB = '\x17'
-LF  = '\x0A'
-CR  = '\x0D'
+ETB = b'\x17'
+LF  = b'\x0A'
+CR  = b'\x0D'
 #: CR + LF shortcut.
 CRLF = CR + LF
 
 #: Message records delimeter.
-RECORD_SEP    = '\x0D' # \r #
+RECORD_SEP    = b'\x0D' # \r #
 #: Record fields delimeter.
-FIELD_SEP     = '\x7C' # |  #
+FIELD_SEP     = b'\x7C' # |  #
 #: Delimeter for repeated fields.
-REPEAT_SEP    = '\x5C' # \  #
+REPEAT_SEP    = b'\x5C' # \  #
 #: Field components delimeter.
-COMPONENT_SEP = '\x5E' # ^  #
+COMPONENT_SEP = b'\x5E' # ^  #
 #: Date escape token.
-ESCAPE_SEP    = '\x26' # &  #
+ESCAPE_SEP    = b'\x26' # &  #

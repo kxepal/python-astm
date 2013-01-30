@@ -8,18 +8,18 @@
 #
 
 from collections import Iterable
-from .compat import basestring, unicode
+from .compat import unicode
 from .constants import (
     STX, ETX, ETB, CR, LF, CRLF,
     FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP,
-    MAX_MESSAGE_SIZE
+    MAX_MESSAGE_SIZE, ENCODING
 )
 try:
     from itertools import izip_longest
 except ImportError: # Python 3
     from itertools import zip_longest as izip_longest
 
-def decode(data):
+def decode(data, encoding=ENCODING):
     """Common ASTM decoding function that tries to guess which kind of data it
     handles.
 
@@ -32,39 +32,53 @@ def decode(data):
 
     Otherwise it counts `data` as regular record structure.
 
-    :param data: ASTM data object.
-    :type data: str
+    Note, that `data` should be bytes, not unicode string even if you know his
+    `encoding`.
 
-    :return: List of ASTM records.
+    :param data: ASTM data object.
+    :type data: bytes
+
+    :param encoding: Data encoding.
+    :type encoding: str
+
+    :return: List of ASTM records with unicode data.
     :rtype: list
     """
-    if data[0] == STX: # may be decode message \x02...\x03CS\r\n
-        seq, records, cs = decode_message(data)
+    if not isinstance(data, bytes):
+        raise TypeError('bytes expected, got unicode data')
+    if data.startswith(STX): # may be decode message \x02...\x03CS\r\n
+        seq, records, cs = decode_message(data, encoding)
         return records
-    if data[0].isdigit(): # may be decode frame \d...
-        seq, records = decode_frame(data)
+    byte = data[:1].decode()
+    if  byte.isdigit():
+        seq, records = decode_frame(data, encoding)
         return records
-    return [decode_record(data)]
+    return [decode_record(data, encoding)]
 
-def decode_message(message):
-    """Decodes complete ASTM message that is sended or received due
+def decode_message(message, encoding):
+    """Decodes complete ASTM message that is sent or received due
     communication routines. It should contains checksum that would be
     additionally verified.
 
     :param message: ASTM message.
-    :type message: str
+    :type message: bytes
+
+    :param encoding: Data encoding.
+    :type encoding: str
 
     :returns: Tuple of three elements:
 
         * :class:`int` frame sequence number.
-        * :class:`list` of records.
-        * :class:`str` checksum.
+        * :class:`list` of records with unicode data.
+        * :class:`bytes` checksum.
 
     :raises:
         * :exc:`ValueError` if ASTM message is malformed.
         * :exc:`AssertionError` if checksum verification fails.
     """
-    if not (message[0] == STX and message[-2:] == CRLF):
+    if not isinstance(message, bytes):
+        raise TypeError('bytes expected, got unicode data')
+    if not (message.startswith(STX) and message.endswith(CRLF)):
         raise ValueError('Malformed ASTM message. Expected that it will started'
                          ' with %x and followed by %x%x characters. Got: %r'
                          ' ' % (ord(STX), ord(CR), ord(LF), message))
@@ -72,45 +86,52 @@ def decode_message(message):
     frame, cs = frame_cs[:-2], frame_cs[-2:]
     ccs = make_checksum(frame)
     assert cs == ccs, 'Checksum failure: expected %r, calculated %r' % (cs, ccs)
-    seq, records = decode_frame(frame)
-    return seq, records, cs
+    seq, records = decode_frame(frame, encoding)
+    return seq, records, cs.decode()
 
-def decode_frame(frame):
+def decode_frame(frame, encoding):
     """Decodes ASTM frame: list of records followed by sequence number."""
-    if not frame[0].isdigit():
-        raise ValueError('Malformed ASTM frame. Expected leading seq number %r'
-                         '' % frame)
-    if frame.endswith((CR + ETX, ETB)):
+    if not isinstance(frame, bytes):
+        raise TypeError('bytes expected, got unicode data')
+    if frame.endswith(CR + ETX):
         frame = frame[:-2]
     elif frame.endswith(ETB):
         frame = frame[:-1]
     else:
-        raise ValueError('Incomplete frame data.'
-                         ' Expected trailing <CR><ETX> or <ETB> chars')
+        raise ValueError('Incomplete frame data %r.'
+                         ' Expected trailing <CR><ETX> or <ETB> chars' % frame)
+    seq = frame[:1].decode()
+    if not seq.isdigit():
+        raise ValueError('Malformed ASTM frame. Expected leading seq number %r'
+                         '' % frame)
+    seq, records = int(seq), frame[1:]
+    return seq, [decode_record(record, encoding)
+                 for record in records.split(RECORD_SEP)]
 
-    seq, records = int(frame[0]), frame[1:]
-    return seq, [decode_record(record) for record in records.split(RECORD_SEP)]
-
-def decode_record(record):
+def decode_record(record, encoding):
     """Decodes ASTM record message."""
     fields = []
     for item in record.split(FIELD_SEP):
         if REPEAT_SEP in item:
-            item = decode_repeated_component(item)
+            item = decode_repeated_component(item, encoding)
         elif COMPONENT_SEP in item:
-            item = decode_component(item)
+            item = decode_component(item, encoding)
+        else:
+            item = item.decode(encoding)
         fields.append([None, item][bool(item)])
     return fields
 
-def decode_component(field):
+def decode_component(field, encoding):
     """Decodes ASTM field component."""
-    return [[None, item][bool(item)] for item in field.split(COMPONENT_SEP)]
+    return [[None, item.decode(encoding)][bool(item)]
+            for item in field.split(COMPONENT_SEP)]
 
-def decode_repeated_component(component):
+def decode_repeated_component(component, encoding):
     """Decodes ASTM field repeated component."""
-    return [decode_component(item) for item in component.split(REPEAT_SEP)]
+    return [decode_component(item, encoding)
+            for item in component.split(REPEAT_SEP)]
 
-def encode(records):
+def encode(records, encoding=ENCODING):
     """Encodes list of records into single ASTM message, also called as "packed"
     message.
 
@@ -123,15 +144,18 @@ def encode(records):
     :param records: List of ASTM records.
     :type records: list
 
+    :param encoding: Data encoding.
+    :type encoding: str
+
     :return: List of ASTM message chunks.
     :rtype: list
     """
-    msg = encode_message(1, records)
+    msg = encode_message(1, records, encoding)
     if MAX_MESSAGE_SIZE is not None and len(msg[1:-5]) > MAX_MESSAGE_SIZE:
         return list(split(msg))
     return [msg]
 
-def iter_encode(records):
+def iter_encode(records, encoding=ENCODING):
     """Encodes and emits each record as separate message.
 
     If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
@@ -142,7 +166,7 @@ def iter_encode(records):
     """
     idx = 1
     for record in records:
-        msg = encode_message(idx, [record])
+        msg = encode_message(idx, [record], encoding)
         if MAX_MESSAGE_SIZE is not None and len(msg) > MAX_MESSAGE_SIZE:
             for chunk in split(msg):
                 idx += 1
@@ -151,7 +175,7 @@ def iter_encode(records):
             idx += 1
             yield msg
 
-def encode_message(seq, records):
+def encode_message(seq, records, encoding):
     """Encodes ASTM message.
 
     :param seq: Frame sequence number.
@@ -160,14 +184,18 @@ def encode_message(seq, records):
     :param records: List of ASTM records.
     :type records: list
 
+    :param encoding: Data encoding.
+    :type encoding: str
+
     :return: ASTM complete message with checksum and other control characters.
     :rtype: str
     """
-    data = RECORD_SEP.join(encode_record(record) for record in records)
-    data = ''.join((str(seq), data, CR, ETX))
-    return ''.join([STX, data, make_checksum(data), CR, LF])
+    data = RECORD_SEP.join(encode_record(record, encoding)
+                           for record in records)
+    data = b''.join((str(seq).encode(), data, CR, ETX))
+    return b''.join([STX, data, make_checksum(data), CR, LF])
 
-def encode_record(record):
+def encode_record(record, encoding):
     """Encodes single ASTM record.
 
     :param record: ASTM record. Each :class:`str`-typed item counted as field
@@ -175,58 +203,70 @@ def encode_record(record):
                    and second leveled - as repeated components.
     :type record: list
 
+    :param encoding: Data encoding.
+    :type encoding: str
+
     :returns: Encoded ASTM record.
     :rtype: str
     """
     fields = []
     _append = fields.append
     for field in record:
-        if isinstance(field, basestring):
+        if isinstance(field, bytes):
             _append(field)
+        elif isinstance(field, unicode):
+            _append(field.encode(encoding))
         elif isinstance(field, Iterable):
-            _append(encode_component(field))
+            _append(encode_component(field, encoding))
         elif field is None:
-            _append('')
+            _append(b'')
         else:
-            _append(unicode(field))
+            _append(unicode(field).encode(encoding))
     return FIELD_SEP.join(fields)
 
-def encode_component(component):
+def encode_component(component, encoding):
     """Encodes ASTM record field components."""
     items = []
     _append = items.append
     for item in component:
-        if isinstance(item, basestring):
+        if isinstance(item, bytes):
             _append(item)
+        elif isinstance(item, unicode):
+            _append(item.encode(encoding))
         elif isinstance(item, Iterable):
-            return encode_repeated_component(component)
+            return encode_repeated_component(component, encoding)
         elif item is None:
-            _append('')
+            _append(b'')
         else:
-            _append(unicode(item))
+            _append(unicode(item).encode(encoding))
 
     return COMPONENT_SEP.join(items).rstrip(COMPONENT_SEP)
 
-def encode_repeated_component(components):
+def encode_repeated_component(components, encoding):
     """Encodes repeated components."""
-    return REPEAT_SEP.join(encode_component(item) for item in components)
+    return REPEAT_SEP.join(encode_component(item, encoding)
+                           for item in components)
 
 def make_checksum(message):
     """Calculates checksum for specified message.
 
     :param message: ASTM message.
-    :type message: str
+    :type message: bytes
 
     :returns: Checksum value that is actually byte sized integer in hex base
-    :rtype: str
+    :rtype: bytes
     """
-    return hex(sum(ord(c) for c in message) & 0xFF)[2:].upper().zfill(2)
+    if not isinstance(message[0], int):
+        message = map(ord, message)
+    return hex(sum(message) & 0xFF)[2:].upper().zfill(2).encode()
 
 def make_chunks(s, n):
-    return [''.join(item) for item in izip_longest(*[iter(s)]*n, fillvalue='')]
+    iter_bytes = (s[i:i+1] for i in range(len(s)))
+    return [b''.join(item)
+            for item in izip_longest(*[iter_bytes]*n, fillvalue=b'')]
 
 def split(msg, size=None):
-    stx, frame, msg, tail = msg[0], msg[1], msg[2:-6], msg[-6:]
+    stx, frame, msg, tail = msg[:1], msg[1:2], msg[2:-6], msg[-6:]
     assert stx == STX
     assert frame.isdigit()
     assert tail.endswith(CRLF)
@@ -235,19 +275,22 @@ def split(msg, size=None):
     chunks, last = chunks[:-1], chunks[-1]
     idx = 0
     for idx, chunk in enumerate(chunks):
-        item = ''.join([str(idx + frame), chunk, ETB])
-        yield ''.join([STX, item, make_checksum(item), CRLF])
-    item = ''.join([str(idx + frame + 1), last, CR, ETX])
-    yield ''.join([STX, item, make_checksum(item), CRLF])
+        item = b''.join([str(idx + frame).encode(), chunk, ETB])
+        yield b''.join([STX, item, make_checksum(item), CRLF])
+    item = b''.join([str(idx + frame + 1).encode(), last, CR, ETX])
+    yield b''.join([STX, item, make_checksum(item), CRLF])
 
 def join(chunks):
     chunks = list(chunks)
     chunks, last = chunks[:-1], chunks[-1]
-    msg = '1' + ''.join(c[2:-5] for c in chunks) + last[2:-4]
-    return ''.join([STX, msg, make_checksum(msg), CRLF])
+    msg = b'1' + b''.join(c[2:-5] for c in chunks) + last[2:-4]
+    return b''.join([STX, msg, make_checksum(msg), CRLF])
 
 def is_chunked_message(message):
     """Checks plain message for chunked byte."""
+    length = len(message)
     if len(message) < 5:
         return False
-    return message[-5] == ETB
+    if ETB not in message:
+        return False
+    return message.index(ETB) == length - 5
