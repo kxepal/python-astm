@@ -162,17 +162,9 @@ class EncodeTestCase(unittest.TestCase):
 
 class ChunkedEncodingTestCase(unittest.TestCase):
 
-    def setUp(self):
-        self._size = codec.MAX_MESSAGE_SIZE
-        codec.MAX_MESSAGE_SIZE = 3
-
-    def tearDown(self):
-        codec.MAX_MESSAGE_SIZE = self._size
-
     def test_encode_chunky(self):
-        codec.MAX_MESSAGE_SIZE = 4
         recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
-        res = codec.encode(recs)
+        res = codec.encode(recs, size=4)
         self.assertTrue(isinstance(res, list))
         self.assertEqual(len(res), 7)
 
@@ -185,16 +177,14 @@ class ChunkedEncodingTestCase(unittest.TestCase):
         self.assertEqual(res[6], f('{STX}7oo{CR}{ETX}25{CRLF}'))
 
     def test_decode_chunks(self):
-        codec.MAX_MESSAGE_SIZE = 4
         recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
-        res = codec.encode(recs)
+        res = codec.encode(recs, size=4)
         for item in res:
             codec.decode(item)
 
     def test_join_chunks(self):
-        codec.MAX_MESSAGE_SIZE = 4
         recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
-        chunks = codec.encode(recs)
+        chunks = codec.encode(recs, size=4)
         msg = codec.join(chunks)
         codec.decode(msg)
 

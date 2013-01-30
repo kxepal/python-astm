@@ -10,10 +10,6 @@
 #: :mod:`astm.protocol` base encoding.
 ENCODING = 'latin-1'
 
-#: Maximum message size before it will be split by chunks.
-#: If is `None` encoded message will be never split.
-MAX_MESSAGE_SIZE = None
-
 #: Message start token.
 STX = b'\x02'
 #: Message end token.
