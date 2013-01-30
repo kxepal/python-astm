@@ -7,7 +7,7 @@
 # you should have received as part of this distribution.
 #
 
-#: :mod:`astm.protocol` base encoding.
+#: ASTM specification base encoding.
 ENCODING = 'latin-1'
 
 #: Message start token.
