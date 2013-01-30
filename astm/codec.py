@@ -11,8 +11,7 @@ from collections import Iterable
 from .compat import unicode
 from .constants import (
     STX, ETX, ETB, CR, LF, CRLF,
-    FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP,
-    MAX_MESSAGE_SIZE, ENCODING
+    FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP, ENCODING
 )
 try:
     from itertools import izip_longest
@@ -45,7 +44,7 @@ def decode(data, encoding=ENCODING):
     :rtype: list
     """
     if not isinstance(data, bytes):
-        raise TypeError('bytes expected, got unicode data')
+        raise TypeError('bytes expected, got %r' % data)
     if data.startswith(STX): # may be decode message \x02...\x03CS\r\n
         seq, records, cs = decode_message(data, encoding)
         return records
@@ -77,7 +76,7 @@ def decode_message(message, encoding):
         * :exc:`AssertionError` if checksum verification fails.
     """
     if not isinstance(message, bytes):
-        raise TypeError('bytes expected, got unicode data')
+        raise TypeError('bytes expected, got %r' % message)
     if not (message.startswith(STX) and message.endswith(CRLF)):
         raise ValueError('Malformed ASTM message. Expected that it will started'
                          ' with %x and followed by %x%x characters. Got: %r'
@@ -92,7 +91,7 @@ def decode_message(message, encoding):
 def decode_frame(frame, encoding):
     """Decodes ASTM frame: list of records followed by sequence number."""
     if not isinstance(frame, bytes):
-        raise TypeError('bytes expected, got unicode data')
+        raise TypeError('bytes expected, got %r' % frame)
     if frame.endswith(CR + ETX):
         frame = frame[:-2]
     elif frame.endswith(ETB):
@@ -131,7 +130,7 @@ def decode_repeated_component(component, encoding):
     return [decode_component(item, encoding)
             for item in component.split(REPEAT_SEP)]
 
-def encode(records, encoding=ENCODING):
+def encode(records, encoding=ENCODING, size=None):
     """Encodes list of records into single ASTM message, also called as "packed"
     message.
 
@@ -151,11 +150,11 @@ def encode(records, encoding=ENCODING):
     :rtype: list
     """
     msg = encode_message(1, records, encoding)
-    if MAX_MESSAGE_SIZE is not None and len(msg[1:-5]) > MAX_MESSAGE_SIZE:
-        return list(split(msg))
+    if size is not None and len(msg[1:-5]) > size:
+        return list(split(msg, size))
     return [msg]
 
-def iter_encode(records, encoding=ENCODING):
+def iter_encode(records, encoding=ENCODING, size=None):
     """Encodes and emits each record as separate message.
 
     If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
@@ -167,8 +166,8 @@ def iter_encode(records, encoding=ENCODING):
     idx = 1
     for record in records:
         msg = encode_message(idx, [record], encoding)
-        if MAX_MESSAGE_SIZE is not None and len(msg) > MAX_MESSAGE_SIZE:
-            for chunk in split(msg):
+        if size is not None and len(msg) > size:
+            for chunk in split(msg, size):
                 idx += 1
                 yield chunk
         else:
@@ -265,13 +264,13 @@ def make_chunks(s, n):
     return [b''.join(item)
             for item in izip_longest(*[iter_bytes]*n, fillvalue=b'')]
 
-def split(msg, size=None):
+def split(msg, size):
     stx, frame, msg, tail = msg[:1], msg[1:2], msg[2:-6], msg[-6:]
     assert stx == STX
     assert frame.isdigit()
     assert tail.endswith(CRLF)
     frame = int(frame)
-    chunks = make_chunks(msg, size or MAX_MESSAGE_SIZE)
+    chunks = make_chunks(msg, size)
     chunks, last = chunks[:-1], chunks[-1]
     idx = 0
     for idx, chunk in enumerate(chunks):
