@@ -8,7 +8,7 @@
 #
 
 import logging
-from threading import _Timer, RLock
+from threading import Timer, RLock
 from collections import namedtuple
 from .asynclib import AsyncChat
 from .records import HeaderRecord, TerminatorRecord
@@ -40,7 +40,7 @@ class ASTMProtocol(AsyncChat):
     _state = None
     _lock = RLock()
     _timer = None
-    _timer_cls = _Timer
+    _timer_cls = Timer
 
     def __init__(self, sock=None, map=None, timeout=None):
         super(ASTMProtocol, self).__init__(sock, map)
