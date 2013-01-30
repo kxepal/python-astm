@@ -15,10 +15,9 @@ import warnings
 from operator import itemgetter
 from itertools import islice
 try:
-    from itertools import izip, izip_longest
+    from itertools import izip_longest
 except ImportError: # Python 3
     from itertools import zip_longest as izip_longest
-    izip = zip
     from .compat import basestring, unicode, long
 
 
