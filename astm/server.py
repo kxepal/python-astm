@@ -36,11 +36,18 @@ class BaseRecordsDispatcher(object):
             'R': self.on_result,
             'L': self.on_terminator
         }
+        self.wrappers = {}
 
     def __call__(self, message):
         seq, records, cs = decode_message(message, self.encoding)
         for record in records:
-            self.dispatch[record[0]](record)
+            self.dispatch[record[0]](self.wrap(record))
+
+    def wrap(self, record):
+        rtype = record[0]
+        if rtype in self.wrappers:
+            return self.wrappers[rtype](*record)
+        return record
 
     def on_header(self, record):
         """Header record handler."""

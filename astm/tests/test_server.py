@@ -152,6 +152,18 @@ class RecordsDispatcherTestCase(unittest.TestCase):
         self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['L'].was_called)
 
+    def test_wrap_before_dispatch(self):
+        class Thing(object):
+            def __init__(self, *args):
+                self.args = args
+        def handler(record):
+            assert isinstance(record, Thing)
+        message = codec.encode_message(1, ['H'], 'ascii')
+        self.dispatcher.wrappers['H'] = Thing
+        self.dispatcher.dispatch['H'] = track_call(handler)
+        self.dispatcher(message)
+        self.assertTrue(self.dispatcher.dispatch['H'].was_called)
+
 
 if __name__ == '__main__':
     unittest.main()
