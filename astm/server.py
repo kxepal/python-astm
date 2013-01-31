@@ -41,7 +41,7 @@ class BaseRecordsDispatcher(object):
     def __call__(self, message):
         seq, records, cs = decode_message(message, self.encoding)
         for record in records:
-            self.dispatch[record[0]](self.wrap(record))
+            self.dispatch.get(record[0], self.on_unknown)(self.wrap(record))
 
     def wrap(self, record):
         rtype = record[0]
@@ -66,6 +66,9 @@ class BaseRecordsDispatcher(object):
 
     def on_terminator(self, record):
         """Terminator record handler."""
+
+    def on_unknown(self, record):
+        """Fallback handler for dispatcher."""
 
 
 class RequestHandler(ASTMProtocol):

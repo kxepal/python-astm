@@ -120,6 +120,7 @@ class RecordsDispatcherTestCase(unittest.TestCase):
         d = BaseRecordsDispatcher()
         for key, value in d.dispatch.items():
             d.dispatch[key] = track_call(value)
+        d.on_unknown = track_call(d.on_unknown)
         self.dispatcher = d
 
     def test_dispatch_header(self):
@@ -163,6 +164,12 @@ class RecordsDispatcherTestCase(unittest.TestCase):
         self.dispatcher.dispatch['H'] = track_call(handler)
         self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['H'].was_called)
+
+    def test_provide_default_handler_for_unknown_message_type(self):
+        message = codec.encode_message(1, ['FOO'], 'ascii')
+        self.dispatcher(message)
+        self.assertTrue(self.dispatcher.on_unknown.was_called)
+
 
 
 if __name__ == '__main__':
