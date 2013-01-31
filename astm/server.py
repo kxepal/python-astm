@@ -9,7 +9,7 @@
 
 import logging
 import socket
-from .asynclib import Dispatcher
+from .asynclib import Dispatcher, loop
 from .codec import decode_message, is_chunked_message, join
 from .constants import ACK, NAK, ENCODING
 from .exceptions import InvalidState, NotAccepted
@@ -174,3 +174,8 @@ class Server(Dispatcher):
         sock, addr = pair
         self.request(sock, self.dispatcher())
         super(Server, self).handle_accept()
+
+    def serve_forever(self, *args, **kwargs):
+        """Enters into the :func:`polling loop <asynclib.loop>` to let server
+        handle incoming requests."""
+        loop(*args, **kwargs)
