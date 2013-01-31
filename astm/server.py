@@ -22,8 +22,12 @@ __all__ = ['BaseRecordsDispatcher', 'RequestHandler', 'Server']
 
 class BaseRecordsDispatcher(object):
     """Dispatcher of received ASTM records by :class:`RequestHandler`."""
-    def __init__(self, encoding=ENCODING):
-        self.encoding = encoding
+
+    #: Encoding of received messages.
+    encoding = ENCODING
+
+    def __init__(self, encoding=None):
+        self.encoding = encoding or self.encoding
         self.dispatch = {
             'H': self.on_header,
             'C': self.on_comment,
@@ -130,27 +134,33 @@ class Server(Dispatcher):
     :param port: Server port number.
     :type port: int
 
-    :param request: Server request handler.
-    :type request: :class:`RequestHandler`
+    :param request: Custom server request handler. If omitted  the
+                    :class:`RequestHandler` will be used by default.
 
-    :param dispatcher: Request handler records dispatcher instance.
-    :type dispatcher: :class:`BaseRecordsDispatcher`
+    :param dispatcher: Custom request handler records dispatcher. If omitted the
+                       :class:`BaseRecordsDispatcher` will be used by default.
     """
+
+    request = RequestHandler
+    dispatcher = BaseRecordsDispatcher
+
     def __init__(self, host='localhost', port=15200,
-                 request=RequestHandler, dispatcher=BaseRecordsDispatcher()):
+                 request=None, dispatcher=None):
         super(Server, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.bind((host, port))
         self.listen(5)
         self.pool = []
-        self.request = request
-        self.dispatcher = dispatcher
+        if request is not None:
+            self.request = request
+        if dispatcher is not None:
+            self.dispatcher = dispatcher
 
     def handle_accept(self):
         pair = self.accept()
         if pair is None:
             return
         sock, addr = pair
-        self.request(sock, self.dispatcher)
+        self.request(sock, self.dispatcher())
         super(Server, self).handle_accept()
