@@ -96,7 +96,7 @@ class Header(HeaderRecord):
     version = ConstantField(default='E 1394-97')
 
 
-class Patient(PatientRecord):
+class CommonPatient(PatientRecord):
     """ASTM patient record.
 
     :param type: Record Type ID. Always ``P``.
@@ -216,7 +216,7 @@ class Patient(PatientRecord):
     special_2 = SetField(values=(0, 1), field=IntegerField())
 
 
-class Order(OrderRecord):
+class CommonOrder(OrderRecord):
     biomaterial = TextField(length=20)
     created_at = DateTimeField(required=True)
     laboratory_field_2 = TextField(length=12)
@@ -227,12 +227,12 @@ class Order(OrderRecord):
     user_field_2 = TextField(length=1024)
 
 
-class Result(ResultRecord):
+class CommonResult(ResultRecord):
     completed_at = DateTimeField(required=True)
     value = TextField(required=True, length=20)
 
 
-class Comment(CommentRecord):
+class CommonComment(CommentRecord):
     ctype = ConstantField(default='G')
 
 

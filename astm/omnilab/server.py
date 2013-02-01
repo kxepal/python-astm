@@ -14,21 +14,21 @@
 
 """
 
-from astm.server import RequestHandler
+from astm.server import BaseRecordsDispatcher
 from astm.mapping import (
     Component, ConstantField, ComponentField, DateTimeField, IntegerField,
-    RepeatedComponentField, SetField, TextField, NotUsedField
+    SetField, TextField, NotUsedField
 )
 from .common import (
-    Header, Terminator, Patient,
-    Order as _Order,
-    Result as _Result,
-    Comment as _Comment,
+    Header, Terminator, CommonPatient as Patient,
+    CommonOrder,
+    CommonResult,
+    CommonComment,
     Sender
 )
 
 
-__all__ = ['RequestHandler',
+__all__ = ['RecordsDispatcher',
            'Header', 'Patient', 'Order', 'Result', 'Terminator',
            'CommentData', 'CompletionDate', 'Instrument', 'Operator',
            'Sender', 'Test']
@@ -159,7 +159,7 @@ CommentData = Component.build(
 )
 
 
-class Order(_Order):
+class Order(CommonOrder):
     """ASTM order record.
 
     :param type: Record Type ID. Always ``O``.
@@ -267,7 +267,7 @@ class Order(_Order):
     test = ComponentField(Test)
 
 
-class Result(_Result):
+class Result(CommonResult):
     """ASTM patient record.
 
     :param type: Record Type ID. Always ``R``.
@@ -345,7 +345,7 @@ class Result(_Result):
     units = TextField(length=20)
 
 
-class Comment(_Comment):
+class Comment(CommonComment):
     """ASTM patient record.
 
     :param type: Record Type ID. Always ``C``.
@@ -366,3 +366,18 @@ class Comment(_Comment):
     """
     source = ConstantField(default='I')
     data = ComponentField(CommentData)
+
+
+class RecordsDispatcher(BaseRecordsDispatcher):
+    """Omnilab specific records dispatcher. Automatically wraps records by
+    related mappings."""
+    def __init__(self, *args, **kwargs):
+        super(RecordsDispatcher, self).__init__(*args, **kwargs)
+        self.wrappers = {
+            'H': Header,
+            'P': Patient,
+            'O': Order,
+            'R': Result,
+            'C': Comment,
+            'L': Terminator
+        }

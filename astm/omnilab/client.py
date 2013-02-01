@@ -14,22 +14,20 @@
 
 """
 
-from astm import Client
 from astm.mapping import (
     Component, ConstantField, ComponentField, IntegerField,
     RepeatedComponentField, SetField, TextField, NotUsedField
 )
 from .common import (
     Header, Terminator,
-    Patient as _Patient,
-    Order as _Order,
-    Result as _Result,
-    Comment as _Comment,
+    CommonPatient,
+    CommonOrder,
+    CommonResult,
+    CommonComment,
     Sender
 )
 
-__all__ = ['Client',
-           'Header', 'Patient', 'Order', 'Result', 'Comment', 'Terminator',
+__all__ = ['Header', 'Patient', 'Order', 'Result', 'Comment', 'Terminator',
            'CommentData', 'PatientAge', 'Sender', 'Test']
 
 #: Patient age structure.
@@ -78,7 +76,7 @@ CommentData = Component.build(
 )
 
 
-class Patient(_Patient):
+class Patient(CommonPatient):
     """ASTM patient record.
 
     :param type: Record Type ID. Always ``P``.
@@ -193,7 +191,7 @@ class Patient(_Patient):
     special_1 = ComponentField(PatientAge)
 
 
-class Order(_Order):
+class Order(CommonOrder):
     """ASTM order record.
 
     :param type: Record Type ID. Always ``O``.
@@ -308,7 +306,7 @@ class Order(_Order):
     test = RepeatedComponentField(Test)
 
 
-class Result(_Result):
+class Result(CommonResult):
     """ASTM patient record.
 
     :param type: Record Type ID. Always ``R``.
@@ -358,7 +356,7 @@ class Result(_Result):
     test = ComponentField(Test)
 
 
-class Comment(_Comment):
+class Comment(CommonComment):
     """ASTM patient record.
 
     :param type: Record Type ID. Always ``C``.
