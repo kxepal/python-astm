@@ -10,6 +10,7 @@
 import contextlib
 import logging
 import socket
+from .asynclib import loop
 from .codec import encode_message
 from .constants import ENQ, EOT
 from .exceptions import InvalidState, NotAccepted, Rejected
@@ -269,3 +270,8 @@ class Client(ASTMProtocol):
                      self.remain_attempts)
             return self.push(ENQ)
         raise Rejected('Server reject session establishment.')
+
+    def run(self, *args, **kwargs):
+        """Enters into the :func:`polling loop <asynclib.loop>` to let client
+        send outgoing requests."""
+        loop(*args, **kwargs)
