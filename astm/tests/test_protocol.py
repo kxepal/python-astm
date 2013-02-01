@@ -7,6 +7,7 @@
 # you should have received as part of this distribution.
 #
 
+import inspect
 import unittest
 from astm import constants
 from astm.tests.utils import DummyMixIn, track_call
@@ -136,6 +137,10 @@ class StateTestCase(unittest.TestCase):
     
 
 class TimeoutTestCase(unittest.TestCase):
+
+
+    def test_timer_class(self):
+        assert inspect.isclass(DummyProto._timer_cls)
 
     def test_default_timeout(self):
         obj = DummyProto()

@@ -21,6 +21,8 @@ STATE = namedtuple('ASTMState', ['init', 'opened', 'transfer'])(*range(3))
 
 __all__ = ['STATE', 'ASTMProtocol']
 
+Timer = type(Timer(None, None))
+
 class ASTMProtocol(AsyncChat):
     """Common ASTM protocol routines."""
 
