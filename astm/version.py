@@ -7,5 +7,5 @@
 # you should have received as part of this distribution.
 #
 
-__version__ = '0.4.0'
-__version_info__ = (0, 4, 0, '', 0)
+__version__ = '0.4.1'
+__version_info__ = (0, 4, 1, '', 0)
