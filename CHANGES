@@ -1,4 +1,15 @@
 
+Release 0.4 (2013-02-01)
+------------------------
+
+- Fix astm.codec module: now it only decodes bytes to unicode and encodes
+  unicode to bytes;
+- Add records dispatcher for server request handler;
+- Add session support for astm client emitter;
+- Repeat ENQ on timeout;
+- Code cleanup and refactoring;
+- Set minimal Python version to 2.6, but 3.2-3.3 also works well.
+
 Release 0.3 (2012-12-15)
 ------------------------
 
