@@ -17,7 +17,8 @@ from .constants import STX, CRLF, ENQ, ACK, NAK, EOT, ENCODING
 log = logging.getLogger(__name__)
 
 #: ASTM protocol states set.
-STATE = namedtuple('ASTMState', ['init', 'opened', 'transfer'])(*range(3))
+STATE = namedtuple(
+    'ASTMState', ['init', 'opened', 'transfer', 'termination'])(*range(4))
 
 __all__ = ['STATE', 'ASTMProtocol']
 
@@ -139,7 +140,6 @@ class ASTMProtocol(AsyncChat):
         In ASTM specification this state also called as `neutral` which means
         that handler is ready to establish data transfer.
         """
-        self.terminator = 1
         self.state = STATE.init
         self.on_init_state()
         log.info('Switched to init state')
@@ -160,22 +160,37 @@ class ASTMProtocol(AsyncChat):
         """Sets handler state to TRANSFER (2).
 
         In this state handler is able to send or receive ASTM messages depending
-        on his role (client or server). At the end of data transfer client
-        should send <EOT> and switch state to `init`.
+        on his role (client or server).
         """
-        self.terminator = [CRLF, EOT]
         self.state = STATE.transfer
         self.on_transfer_state()
         log.info('Switched to transfer state')
 
+    def set_termination_state(self):
+        """Sets handler state to TERMINATION (3).
+
+        This state is used on transfer session termination to let client or
+        server perform clean up actions before switch back to INIT (0) one.
+        """
+        self.state = STATE.termination
+        self.on_termination_state()
+        log.info('Switched to termination state')
+
     def on_init_state(self):
         """Calls on set state INIT (0)"""
+        self.terminator = 1
 
     def on_opened_state(self):
         """Calls on set state OPENED (1)"""
+        self.terminator = 1
 
     def on_transfer_state(self):
         """Calls on set state TRANSFER (2)"""
+        self.terminator = [CRLF, EOT]
+
+    def on_termination_state(self):
+        """Calls on set state TERMINATION (3)"""
+        self.terminator = 1
 
     def on_timeout(self):
         """Calls when timeout event occurs. Used to limit time for waiting

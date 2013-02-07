@@ -258,6 +258,7 @@ class Client(ASTMProtocol):
         self._last_seq = 0
         self._outgoing_queue = []
         self.records_sm(None)
+        super(Client, self).on_init_state()
 
     def on_timeout(self):
         if self.state == STATE.init:

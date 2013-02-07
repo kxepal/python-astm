@@ -134,6 +134,17 @@ class StateTestCase(unittest.TestCase):
         obj.on_transfer_state = track_call(obj.on_transfer_state)
         obj.set_transfer_state()
         self.assertTrue(obj.on_transfer_state.was_called)
+
+    def test_set_termination_state(self):
+        obj = DummyProto()
+        obj.set_termination_state()
+        self.assertEqual(obj.state, protocol.STATE.termination)
+
+    def test_on_termination_state(self):
+        obj = DummyProto()
+        obj.on_termination_state = track_call(obj.on_termination_state)
+        obj.set_termination_state()
+        self.assertTrue(obj.on_termination_state.was_called)
     
 
 class TimeoutTestCase(unittest.TestCase):
