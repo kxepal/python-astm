@@ -8,7 +8,6 @@
 #
 
 import unittest
-import astm
 from astm.exceptions import NotAccepted, Rejected, InvalidState
 from astm.client import Client
 from astm import constants, protocol
@@ -298,11 +297,6 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.outbox[-1][1:3], b'4L')
         self.assertRaises(Rejected, client.on_nak)
 
-    def test_split_large_records(self):
-        client = DummyClient(emitter)
-        client.max_message_size = 12
-        client.push(astm.encode([['H'] + list(map(str, range(12)))])[0])
-        self.assertEqual(len(client.outbox), 3)
 
 
 if __name__ == '__main__':
