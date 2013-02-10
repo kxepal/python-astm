@@ -133,8 +133,7 @@ class Emitter(object):
 
     @header.setter
     def header(self, value):
-        if value is None:
-            self.header = HeaderRecord()
+        self._header = value or HeaderRecord()
         self._head = self.head()
 
     @property
@@ -147,8 +146,7 @@ class Emitter(object):
 
     @terminator.setter
     def terminator(self, value):
-        if value is None:
-            self.terminator = TerminatorRecord()
+        self._terminator = value or TerminatorRecord()
         self._tail = self.tail()
 
 
