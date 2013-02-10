@@ -16,14 +16,15 @@ from .constants import ENQ, EOT
 from .exceptions import InvalidState, NotAccepted, Rejected
 from .mapping import Record
 from .protocol import ASTMProtocol, STATE
+from .records import HeaderRecord, TerminatorRecord
 
 log = logging.getLogger(__name__)
 
-__all__ = ['Client']
+__all__ = ['Client', 'Emitter']
 
 
 class RecordsStateMachine(object):
-
+    """Simple state machine to track emitting ASTM records in right order."""
     def __init__(self, mapping):
         self.mapping = mapping
         self.state = None
@@ -49,8 +50,108 @@ _default_sm = RecordsStateMachine({
     'O': ['C', 'P', 'O', 'R', 'L'],
     'R': ['C', 'P', 'O', 'R', 'L'],
     'C': ['*'],
-    'L': []
+    'L': ['H']
 })
+
+
+class Emitter(object):
+    """ASTM records emitter for :class:`Client`.
+
+    Used as wrapper for user provided one to provide proper routines around for
+    sending Header and Terminator records.
+
+    :param emitter: Activated generator/coroutine
+    """
+    def __init__(self, emitter):
+        # default header record
+        self._header = HeaderRecord()
+        # default terminator record
+        self._terminator = TerminatorRecord()
+        self._head = None
+        self._body = emitter
+        self._tail = None
+        self.body = emitter
+        # flag to signal that user's emitter produces no records
+        self.empty = False
+        # emitter state - always should be synced with related Client instance
+        self.state = None
+        # Trap used to handle records that was emitted by `body` not in time
+        # they have to be. This is not an error since we have to active client
+        # session inside this `body`.
+        self.trap = []
+
+    def send(self, value=None):
+        """Coroutine-like method to emit next record and pass the callback value
+        to their emitter."""
+        while 1:
+            if self.state == STATE.init:
+                if self._head is None:
+                    raise StopIteration
+                current = self._head
+            elif self.state == STATE.opened:
+                current = self._head
+                if self.empty:
+                    raise StopIteration
+            elif self.state == STATE.transfer:
+                if self.trap:
+                    return self.trap.pop(0)
+                current = self._body
+            elif self.state == STATE.termination:
+                current = self._tail
+            try:
+                record = current.send(value)
+                if self.state != STATE.termination:
+                    return record
+                self.trap.append(record)
+            except TypeError:
+                for item in current:
+                    return item
+            except StopIteration:
+                if self.state != STATE.termination:
+                    raise
+
+    def head(self):
+        """Emits ENQ and Header record."""
+        assert (yield ENQ)
+        ok = yield self.header
+        if not ok:
+            raise Rejected('Header record was rejected')
+
+    def tail(self):
+        """Emits Terminator record."""
+        ok = yield self.terminator
+        if not ok:
+            raise Rejected('Terminator was rejected')
+
+    @property
+    def header(self):
+        """Current Header record.
+
+        On setting value resets active `head` emitter.
+        """
+        return self._header
+
+    @header.setter
+    def header(self, value):
+        if value is None:
+            self.header = HeaderRecord()
+        self._head = self.head()
+
+    @property
+    def terminator(self):
+        """Current Terminator record.
+
+        On setting value resets active `tail` emitter.
+        """
+        return self._terminator
+
+    @terminator.setter
+    def terminator(self, value):
+        if value is None:
+            self.terminator = TerminatorRecord()
+        self._tail = self.tail()
+
+
 
 class Client(ASTMProtocol):
     """Common ASTM client implementation.
@@ -79,43 +180,59 @@ class Client(ASTMProtocol):
     :type: callable
     """
 
+    #: Wrapper of emitter to provide session context and system logic about
+    #: sending head and tail data.
+    emitter_wrapper = Emitter
+
     def __init__(self, emitter, host='localhost', port=15200,
                  timeout=20, retry_attempts=3, records_sm=_default_sm):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
         self._emitter = emitter
-        self._outgoing_queue = []
         self.remain_attempts = retry_attempts
         self.retry_attempts = retry_attempts
         self.records_sm = records_sm
-        self.set_init_state()
-
-    def emit_header(self):
-        """Returns Header record."""
-        return self.astm_header()
-
-    def emit_terminator(self):
-        """Returns Terminator record."""
-        return self.astm_terminator()
 
     def handle_connect(self):
-        self.emitter = self._emitter(self.session)
-        for record in self.emitter:
-            if record is not None:
-                self._outgoing_queue.append(record)
+        """On connection established the client instance initiates
+        :class:`Emitter` with provided one during class initialization and
+        switches into INIT state.
+        """
+        emitter = self._emitter(self.session)
+        self.emitter = self.emitter_wrapper(emitter)
+        self.set_init_state()
+        for item in emitter:
+            self.emitter.trap.append(item)
             break
+        else:
+            self.emitter.empty = True
+        try:
+            self.push(self.emitter.send())
+        except StopIteration:
+            raise InvalidState('Emitter had produced data, but ASTM session'
+                               ' has not been started yet')
 
     @contextlib.contextmanager
     def session(self, header=None, terminator=None):
-        self.push(ENQ)
-        self._outgoing_queue.append(header or self.emit_header())
+        """Context manager that handles ASTM session start and close.
+
+        On session start the :class:`Emitter` instance produces ENQ and Header
+        records. After they been acceped the real data sends to server.
+
+        On exit from `with` block session goes to terminate switching current
+        :class:`Client` instance to TERMINATION state. If his state still was
+        OPENED communication with is over due to no any data was sent except
+        of heading one. Otherwise Terminator record and EOT have to be sent
+        next.
+        """
+        self.emitter.header = header
         yield
-        if self.state == STATE.transfer:
-            self.push_record(terminator or self.emit_terminator())
-            self.terminate()
-        elif self.state == STATE.init:
+        if self.state == STATE.opened:
             self.terminate(True)
+        elif self.state == STATE.transfer:
+            self.set_termination_state()
+            self.emitter.terminator = terminator
 
     def push(self, data, with_timer=True):
         """Pushes data on to the channel's fifo to ensure its transmission with
@@ -134,11 +251,15 @@ class Client(ASTMProtocol):
         super(Client, self).push(data)
 
     def set_transfer_state(self):
+        super(Client, self).set_transfer_state()
         self.terminator = 1
-        self.state = STATE.transfer
-        self.on_transfer_state()
 
     def terminate(self, with_close=False):
+        """Terminates ASTM session by sending EOT message to server.
+
+        If there is no reason to continue communication with server,
+        `with_close` argument allows to close socket when EOT message will be
+        received."""
         # `terminate` method could be called by multiple times simultaneously:
         # first one from session.__exit__ and send one on emitter exhaustion.
         # To prevent sending double EOT messages, we have to control the last
@@ -191,54 +312,48 @@ class Client(ASTMProtocol):
         self.push(data)
 
     def on_enq(self):
+        """Raises :class:`NotAccepted` exception."""
         raise NotAccepted('Client should not receive ENQ.')
 
     def on_ack(self):
+        """Handles ACK response from server.
+
+        Provides callback value :const:`True` to the emitter and sends next
+        message to server.
+        """
         if self.state == STATE.init:
-            if not self._outgoing_queue:
-                # Case when client goes to INIT state and not yet have started
-                # new session, but receives late ACK response. That is wrong
-                # situation that may be caused by error in client logic
-                # so breaking on this.
-                return self.terminate(True)
             self.set_opened_state()
-            record = self._outgoing_queue.pop(0)
         elif self.state == STATE.opened:
             self.set_transfer_state()
-            record = self._outgoing_queue.pop(0)
-        elif self.state == STATE.transfer:
+        elif self.state == STATE.termination:
+            self.terminate()
             try:
-                record = self.emitter.send(True)
+                return self.push(self.emitter.send(True))
             except StopIteration:
-                # We've got everything from the emitter, terminating
-                self.terminate(with_close=True)
-                return
-            # When session closes it resets the client state to INIT. However,
-            # we've just retrieved new record from the emitter and triggered
-            # the new transfer session, so let's wait when it got accepted by
-            # server.
-            if self.state == STATE.init:
-                self._outgoing_queue.append(record)
-                return
-        else:
-            raise InvalidState('Client is not ready to accept ACK.')
+                return self.terminate(True)
+
+        try:
+            record = self.emitter.send(True)
+        except StopIteration:
+            # We've got everything from the emitter, terminating
+            self.terminate(with_close=True)
+            return
 
         self.remain_attempts = self.retry_attempts
         return self.push_record(record)
 
     def on_nak(self):
+        """Handles NAK response from server.
+
+        If it was received on ENQ request, the client tries to repeat last
+        request for allowed amount of attempts. For others it send callback
+        value :const:`False` to the emitter."""
         if self.state == STATE.init:
             return self._retry_enq()
-        elif self.state == STATE.opened:
-            # if Header was rejected, there is not reason to continue since
-            # this also could be a situation when specified password (optional,
-            # but sometimes is required one) incorrect.
-            raise Rejected('Header record was rejected: %r'
-                           '' % self._last_sent_data)
-        elif self.state == STATE.transfer:
+        elif self.state in [STATE.opened, STATE.transfer, STATE.termination]:
             try:
                 record = self.emitter.send(False)
-                if record is not None:
+                if record is not None: # error was fixed somehow
                     return self.push_record(record)
             except StopIteration:
                 pass
@@ -249,18 +364,32 @@ class Client(ASTMProtocol):
             raise InvalidState('Client is not ready to accept NAK.')
 
     def on_eot(self):
+        """Raises :class:`NotAccepted` exception."""
         raise NotAccepted('Client should not receive EOT.')
 
     def on_message(self):
+        """Raises :class:`NotAccepted` exception."""
         raise NotAccepted('Client should not receive ASTM message.')
 
     def on_init_state(self):
+        """Resets client state and inner variables."""
         self._last_seq = 0
-        self._outgoing_queue = []
         self.records_sm(None)
+        self.emitter.state = self.state
         super(Client, self).on_init_state()
 
+    def on_opened_state(self):
+        self.emitter.state = self.state
+
+    def on_transfer_state(self):
+        self.emitter.state = self.state
+
+    def on_termination_state(self):
+        self.emitter.state = self.state
+
     def on_timeout(self):
+        """If timeout had occurs for sending ENQ message, it will try to be
+        repeated."""
         if self.state == STATE.init:
             return self._retry_enq()
 

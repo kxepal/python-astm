@@ -8,7 +8,7 @@
 #
 
 import unittest
-from astm.exceptions import NotAccepted, Rejected
+from astm.exceptions import NotAccepted, Rejected, InvalidState
 from astm.client import Client
 from astm import constants, protocol
 from astm.tests.utils import DummyMixIn
@@ -63,7 +63,7 @@ class ClientTestCase(unittest.TestCase):
 
     def test_init_state(self):
         client = DummyClient(emitter)
-        self.assertEqual(client.state, protocol.STATE.init)
+        self.assertEqual(client.state,None)
 
     def test_open_connection(self):
         client = DummyClient(simple_emitter)
@@ -104,18 +104,28 @@ class ClientTestCase(unittest.TestCase):
         self.assertRaises(Rejected, client.on_nak)
 
     def test_callback_on_sent_failure(self):
+        def emitter(session):
+            with session():
+                ok = yield ['P']
+                assert ok is False
         client = DummyClient(emitter)
         client.handle_connect()
-        client.set_transfer_state()
+        client.on_ack()
+        client.on_ack()
         client.on_nak()
-        self.assertEqual(client.emitter.inbox[0], False)
 
     def test_emitter_may_send_new_record_after_nak_response(self):
+        def emitter(session):
+            with session():
+                assert (yield ['P'])
+                ok = yield ['O']
+                if not ok:
+                    yield ['R']
         client = DummyClient(emitter)
         client.handle_connect()
-        client.set_transfer_state()
-        client.records_sm.state = 'O'
-        client.emitter.put(['R'])
+        client.on_ack()
+        client.on_ack()
+        client.on_ack()
         client.on_nak()
         self.assertEqual(client.outbox[-1][2:3], b'R')
 
@@ -126,17 +136,19 @@ class ClientTestCase(unittest.TestCase):
                     yield
         client = DummyClient(emitter)
         client.handle_connect()
-        self.assertEqual(list(client.outbox),
-            [constants.ENQ, constants.EOT, None])
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_ack()
+        self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], None)
 
     def test_early_yield(self):
         def emitter(session):
-            yield
+            yield ['P']
             with session():
                 if False:
                     yield
         client = DummyClient(emitter)
-        client.handle_connect()
+        self.assertRaises(InvalidState, client.handle_connect)
         self.assertEqual(list(client.outbox), [])
 
     def test_late_ack(self):
@@ -146,8 +158,12 @@ class ClientTestCase(unittest.TestCase):
                     yield
         client = DummyClient(emitter)
         client.handle_connect()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
         client.on_ack()
+        self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], None)
         client.on_ack()
+        self.assertEqual(client.outbox[-1], None)
 
     def test_dummy_usage(self):
         def emitter(session):
@@ -166,7 +182,8 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
         self.assertEqual(client.outbox[-1][1:3], b'3O')
         client.on_ack()
-        self.assertEqual(client.outbox[-3][1:3], b'4L')
+        self.assertEqual(client.outbox[-1][1:3], b'4L')
+        client.on_ack()
         self.assertEqual(client.outbox[-2], constants.EOT)
         self.assertEqual(client.outbox[-1], None)
 
@@ -265,6 +282,20 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
         while client.state != protocol.STATE.init:
             client.on_ack()
+
+    def test_reject_terminator(self):
+        def emitter(session):
+            with session():
+                assert (yield ['P'])
+                assert (yield ['O'])
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        client.on_ack()
+        client.on_ack()
+        client.on_ack()
+        self.assertEqual(client.outbox[-1][1:3], b'4L')
+        self.assertRaises(Rejected, client.on_nak)
 
 
 
