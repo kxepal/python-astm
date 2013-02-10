@@ -11,7 +11,7 @@ import contextlib
 import logging
 import socket
 from .asynclib import loop
-from .codec import encode_message
+from .codec import encode_message, split
 from .constants import ENQ, EOT
 from .exceptions import InvalidState, NotAccepted, Rejected
 from .mapping import Record
@@ -178,18 +178,23 @@ class Client(ASTMProtocol):
                        machine may be replaced by any callable which takes
                        single argument as record type.
     :type: callable
-    """
 
+    :param max_message_size: Amount of bytes that ASTM message should not be
+                             greater. If it does, it will be chunkified
+                             following ASTM rules.
+    """
     #: Wrapper of emitter to provide session context and system logic about
     #: sending head and tail data.
     emitter_wrapper = Emitter
 
     def __init__(self, emitter, host='localhost', port=15200,
-                 timeout=20, retry_attempts=3, records_sm=_default_sm):
+                 timeout=20, retry_attempts=3, records_sm=_default_sm,
+                 max_message_size=None):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
         self._emitter = emitter
+        self.max_message_size = max_message_size
         self.remain_attempts = retry_attempts
         self.retry_attempts = retry_attempts
         self.records_sm = records_sm
@@ -240,6 +245,9 @@ class Client(ASTMProtocol):
         data within specified time frame. If it's doesn't :meth:`on_timeout`
         method will be called and data may be sent once again.
 
+        If `max_message_size` is not ``None``, the sent data will be split by
+        chunks to fit size restriction.
+
         :param data: Sending data.
         :type data: str
 
@@ -248,7 +256,12 @@ class Client(ASTMProtocol):
         """
         if with_timer:
             self.start_timer()
-        super(Client, self).push(data)
+        if self.max_message_size is not None:
+            if len(data) > self.max_message_size:
+                for chunk in split(data, self.max_message_size):
+                    super(Client, self).push(chunk)
+        else:
+            super(Client, self).push(data)
 
     def set_transfer_state(self):
         super(Client, self).set_transfer_state()
