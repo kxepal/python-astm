@@ -300,8 +300,8 @@ class ClientTestCase(unittest.TestCase):
 
     def test_split_large_records(self):
         client = DummyClient(emitter)
-        client.max_record_size = 12
-        client.push(astm.encode([['H'] + map(str, range(12))])[0])
+        client.max_message_size = 12
+        client.push(astm.encode([['H'] + list(map(str, range(12)))])[0])
         self.assertEqual(len(client.outbox), 3)
 
 
