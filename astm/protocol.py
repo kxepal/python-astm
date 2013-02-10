@@ -142,7 +142,7 @@ class ASTMProtocol(AsyncChat):
         """
         self.state = STATE.init
         self.on_init_state()
-        log.info('Switched to init state')
+        log.debug('Switched to init state')
 
     def set_opened_state(self):
         """Sets handler state to OPENED (1).
@@ -154,7 +154,7 @@ class ASTMProtocol(AsyncChat):
         self.terminator = 1
         self.state = STATE.opened
         self.on_opened_state()
-        log.info('Switched to opened state')
+        log.debug('Switched to opened state')
 
     def set_transfer_state(self):
         """Sets handler state to TRANSFER (2).
@@ -164,7 +164,7 @@ class ASTMProtocol(AsyncChat):
         """
         self.state = STATE.transfer
         self.on_transfer_state()
-        log.info('Switched to transfer state')
+        log.debug('Switched to transfer state')
 
     def set_termination_state(self):
         """Sets handler state to TERMINATION (3).
@@ -174,7 +174,7 @@ class ASTMProtocol(AsyncChat):
         """
         self.state = STATE.termination
         self.on_termination_state()
-        log.info('Switched to termination state')
+        log.debug('Switched to termination state')
 
     def on_init_state(self):
         """Calls on set state INIT (0)"""
