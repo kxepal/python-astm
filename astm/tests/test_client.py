@@ -54,9 +54,9 @@ class emitter(object):
         self.outbox.append(record)
 
 
-def simple_emitter(session):
-    with session():
-        yield
+def simple_emitter():
+    yield ['H']
+    yield ['L']
 
 
 class ClientTestCase(unittest.TestCase):
@@ -104,10 +104,10 @@ class ClientTestCase(unittest.TestCase):
         self.assertRaises(Rejected, client.on_nak)
 
     def test_callback_on_sent_failure(self):
-        def emitter(session):
-            with session():
-                ok = yield ['P']
-                assert ok is False
+        def emitter():
+            yield ['H']
+            assert not (yield ['P'])
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
@@ -115,12 +115,13 @@ class ClientTestCase(unittest.TestCase):
         client.on_nak()
 
     def test_emitter_may_send_new_record_after_nak_response(self):
-        def emitter(session):
-            with session():
-                assert (yield ['P'])
-                ok = yield ['O']
-                if not ok:
-                    yield ['R']
+        def emitter():
+            yield ['H']
+            assert (yield ['P'])
+            ok = yield ['O']
+            if not ok:
+                yield ['R']
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
@@ -130,10 +131,9 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.outbox[-1][2:3], b'R')
 
     def test_empty_emitter(self):
-        def emitter(session):
-            with session():
-                if False:
-                    yield
+        def emitter():
+            if False:
+                yield
         client = DummyClient(emitter)
         client.handle_connect()
         self.assertEqual(client.outbox[-1], constants.ENQ)
@@ -142,20 +142,20 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.outbox[-1], None)
 
     def test_early_yield(self):
-        def emitter(session):
+        def emitter():
             yield ['P']
-            with session():
-                if False:
-                    yield
+            if False:
+                yield ['H']
+                yield ['L']
         client = DummyClient(emitter)
-        self.assertRaises(InvalidState, client.handle_connect)
-        self.assertEqual(list(client.outbox), [])
+        client.handle_connect()
+        self.assertRaises(AssertionError, client.on_ack)
 
     def test_late_ack(self):
-        def emitter(session):
-            with session():
-                if False:
-                    yield
+        def emitter():
+            if False:
+                yield ['H']
+                yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         self.assertEqual(client.outbox[-1], constants.ENQ)
@@ -166,12 +166,13 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.outbox[-1], None)
 
     def test_dummy_usage(self):
-        def emitter(session):
-            with session():
-                ok = yield ['P']
-                assert ok
-                ok = yield ['O']
-                assert ok
+        def emitter():
+            yield ['H']
+            ok = yield ['P']
+            assert ok
+            ok = yield ['O']
+            assert ok
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         self.assertEqual(client.outbox[-1], constants.ENQ)
@@ -185,23 +186,28 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.outbox[-1][1:3], b'4L')
         client.on_ack()
         self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_ack()
+        self.assertEqual(client.outbox[-2], constants.EOT)
         self.assertEqual(client.outbox[-1], None)
 
     def test_reject_header(self):
-        def emitter(session):
-            with session():
-                yield ['P']
-                yield ['O']
+        def emitter():
+            assert (yield ['H'])
+            yield ['P']
+            yield ['O']
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
-        self.assertRaises(Rejected, client.on_nak)
+        self.assertRaises(AssertionError, client.on_nak)
 
     def test_retry_enq_on_nak(self):
-        def emitter(session):
-            with session():
-                yield ['P']
-                yield ['O']
+        def emitter():
+            yield ['H']
+            yield ['P']
+            yield ['O']
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         self.assertEqual(client.outbox[-1], constants.ENQ)
@@ -212,22 +218,23 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(list(client.outbox), [constants.ENQ]*3)
 
     def test_nak_callback(self):
-        def emitter(session):
-            with session():
-                ok = yield ['P']
-                assert not ok
+        def emitter():
+            yield ['H']
+            assert not (yield ['P'])
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
         client.on_ack()
         client.on_nak()
+        client.on_ack()
 
     def test_emit_after_nak(self):
-        def emitter(session):
-            with session():
-                ok = yield ['P']
-                assert not ok
-                yield ['O']
+        def emitter():
+            yield ['H']
+            assert not (yield ['P'])
+            yield ['O']
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
@@ -236,58 +243,79 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
 
     def test_terminate_on_exception_after_nake(self):
-        def emitter(session):
-            with session():
-                ok = yield ['P']
-                assert ok
-                yield ['O']
+        def emitter():
+            yield ['H']
+            assert (yield ['P'])
+            yield ['O']
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
         client.on_ack()
         self.assertRaises(AssertionError, client.on_nak)
+        self.assertEqual(client.outbox[-2], constants.EOT)
         self.assertEqual(client.outbox[-1], None)
 
 
     def test_messages_workflow(self):
-        def emitter(session):
-            with session():
-                yield ['C']
-                yield ['P']
-                yield ['O']
-                yield ['O']
-                yield ['P']
-                yield ['C']
-                yield ['O']
-                yield ['O']
-                yield ['C']
-                yield ['R']
-                yield ['C']
-                yield ['R']
-                yield ['R']
+        def emitter():
+            yield ['H']
+            yield ['C']
+            yield ['P']
+            yield ['O']
+            yield ['O']
+            yield ['P']
+            yield ['C']
+            yield ['O']
+            yield ['O']
+            yield ['C']
+            yield ['R']
+            yield ['C']
+            yield ['R']
+            yield ['R']
+            yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
-        while client.state != protocol.STATE.init:
+        while client.outbox[-1] is not None:
             client.on_ack()
+        self.assertEqual(client.state, protocol.STATE.init)
 
     def test_session_in_loop(self):
-        def emitter(session):
+        def emitter():
             for i in range(2):
-                with session():
-                    yield ['P']
-                    yield ['O']
+                yield ['H']
+                yield ['P']
+                yield ['O']
+                yield ['L']
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
-        while client.state != protocol.STATE.init:
+        while client.outbox[-1] is not None:
             client.on_ack()
+        self.assertEqual(list(client.outbox),
+            [b'\x05',
+             b'\x021H\r\x0389\r\n',
+             b'\x022P\r\x0392\r\n',
+             b'\x023O\r\x0392\r\n',
+             b'\x024L\r\x0390\r\n',
+             b'\x04',
+             b'\x05',
+             b'\x021H\r\x0389\r\n',
+             b'\x022P\r\x0392\r\n',
+             b'\x023O\r\x0392\r\n',
+             b'\x024L\r\x0390\r\n',
+             b'\x04',
+             b'\x05',
+             b'\x04',
+             None])
 
     def test_reject_terminator(self):
-        def emitter(session):
-            with session():
-                assert (yield ['P'])
-                assert (yield ['O'])
+        def emitter():
+            assert (yield ['H'])
+            assert (yield ['P'])
+            assert (yield ['O'])
+            assert (yield ['L'])
         client = DummyClient(emitter)
         client.handle_connect()
         client.on_ack()
@@ -295,8 +323,9 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
         client.on_ack()
         self.assertEqual(client.outbox[-1][1:3], b'4L')
-        self.assertRaises(Rejected, client.on_nak)
-
+        self.assertRaises(AssertionError, client.on_nak)
+        self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], None)
 
 
 if __name__ == '__main__':
