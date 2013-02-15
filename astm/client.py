@@ -22,7 +22,20 @@ __all__ = ['Client', 'Emitter']
 
 
 class RecordsStateMachine(object):
-    """Simple state machine to track emitting ASTM records in right order."""
+    """Simple state machine to track emitting ASTM records in right order.
+
+    :param mapping: Mapping of the ASTM records flow order.
+                    Keys should be string and defines record type, while values
+                    expected as sequence of other record types that may be used
+                    after current one.
+                    For example: ``{"H": ["P", "C", "L"]}`` mapping defines that
+                    if previous record had ``"H"`` type, then the next one
+                    should have ``"P"``, ``"C"`` or ``"L"`` type or
+                    :exc:`AssertionError` will be raised. The default mapping
+                    reflects common ASTM records flow rules. If this argument
+                    specified as :const:`None` no rules will be applied.
+    :type: dict
+    """
     def __init__(self, mapping):
         self.mapping = mapping
         self.state = None
@@ -43,7 +56,7 @@ class RecordsStateMachine(object):
         return '*' in next_types or state in next_types
 
 
-DEFAULT_RECORDS_MAP = {
+DEFAULT_RECORDS_FLOW_MAP = {
     None: ['H'],
     'H': ['C', 'P', 'L'],
     'P': ['C', 'O', 'L'],
@@ -65,28 +78,18 @@ class Emitter(object):
     :param encoding: Data encoding.
     :type encoding: str
 
-    :param records_flow_map: Mapping of the ASTM records flow order.
-                             Keys should be string and defines record type,
-                             while values expected as sequence of other record
-                             types that may be used after current one.
-                             For example: ``{"H": ["P", "C", "L"]}`` mapping
-                             defines that if previous record had ``"H"`` type,
-                             then the next one should have ``"P"``, ``"C"`` or
-                             ``"L"`` type or :exc:`ValueError` will be raised.
-                             The default mapping reflects common ASTM records
-                             flow rules. If this argument specified as
-                             :const:`None` no rules will be applied.
+    :param flow_map: Records flow map. Used by :class:`RecordsStateMachine`.
     :type: dict
     """
 
     #: Records state machine controls emitting records in right order. It
     #: receives `records_flow_map` as only argument on Emitter initialization.
-    records_state_machine = RecordsStateMachine
+    state_machine = RecordsStateMachine
 
-    def __init__(self, emitter, encoding, records_flow_map):
+    def __init__(self, emitter, encoding, flow_map):
         self.current = emitter
         self.encoding = encoding
-        self.records_sm = self.records_state_machine(records_flow_map)
+        self.records_sm = self.state_machine(flow_map)
         # flag to signal that user's emitter produces no records
         self.empty = False
         # last sent sequence number
@@ -139,17 +142,7 @@ class Client(ASTMProtocol):
     :param retry_attempts: Number or attempts to send record to server.
     :type retry_attempts: int
 
-    :param records_flow_map: Mapping of the ASTM records flow order.
-                             Keys should be string and defines record type,
-                             while values expected as sequence of other record
-                             types that may be used after current one.
-                             For example: ``{"H": ["P", "C", "L"]}`` mapping
-                             defines that if previous record had ``"H"`` type,
-                             then the next one should have ``"P"``, ``"C"`` or
-                             ``"L"`` type or :exc:`ValueError` will be raised.
-                             The default mapping reflects common ASTM records
-                             flow rules. If this argument specified as
-                             :const:`None` no rules will be applied.
+    :param flow_map: Records flow map. Used by :class:`RecordsStateMachine`.
     :type: dict
     """
 
@@ -159,7 +152,7 @@ class Client(ASTMProtocol):
 
     def __init__(self, emitter, host='localhost', port=15200,
                  encoding=None, timeout=20, retry_attempts=3,
-                 records_flow_map=DEFAULT_RECORDS_MAP):
+                 flow_map=DEFAULT_RECORDS_FLOW_MAP):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
@@ -168,7 +161,7 @@ class Client(ASTMProtocol):
         self.emitter = self.emitter_wrapper(
             emitter(),
             encoding=encoding or self.encoding,
-            records_flow_map=records_flow_map,
+            flow_map=flow_map,
         )
 
     def handle_connect(self):
