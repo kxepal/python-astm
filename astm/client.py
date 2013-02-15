@@ -62,6 +62,9 @@ class Emitter(object):
 
     :param emitter: Activated generator/coroutine
 
+    :param encoding: Data encoding.
+    :type encoding: str
+
     :param records_flow_map: Mapping of the ASTM records flow order.
                              Keys should be string and defines record type,
                              while values expected as sequence of other record
@@ -73,13 +76,17 @@ class Emitter(object):
                              The default mapping reflects common ASTM records
                              flow rules. If this argument specified as
                              :const:`None` no rules will be applied.
-
-    :type: dict with str keys and values as list of str.
+    :type: dict
     """
+
+    #: Records state machine controls emitting records in right order. It
+    #: receives `records_flow_map` as only argument on Emitter initialization.
+    records_state_machine = RecordsStateMachine
+
     def __init__(self, emitter, encoding, records_flow_map):
         self.current = emitter
         self.encoding = encoding
-        self.records_sm = RecordsStateMachine(records_flow_map)
+        self.records_sm = self.records_state_machine(records_flow_map)
         # flag to signal that user's emitter produces no records
         self.empty = False
         # last sent sequence number
