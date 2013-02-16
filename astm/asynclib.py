@@ -52,7 +52,8 @@ def _strerror(err):
     except (ValueError, OverflowError, NameError):
         if err in errorcode:
             return errorcode[err]
-        return "Unknown error %s" %err
+        return "Unknown error %s" % err
+
 
 def read(obj):
     """Triggers ``handle_read_event`` for specified object."""
@@ -63,6 +64,7 @@ def read(obj):
     except Exception:
         obj.handle_error()
 
+
 def write(obj):
     """Triggers ``handle_write_event`` for specified object."""
     try:
@@ -72,6 +74,7 @@ def write(obj):
     except Exception:
         obj.handle_error()
 
+
 def exception(obj):
     """Triggers ``handle_exception_event`` for specified object."""
     try:
@@ -80,6 +83,7 @@ def exception(obj):
         raise
     except Exception:
         obj.handle_error()
+
 
 def readwrite(obj, flags):
     try:
@@ -100,6 +104,7 @@ def readwrite(obj, flags):
         raise
     except Exception:
         obj.handle_error()
+
 
 def poll(timeout=0.0, map=None):
     if map is None:
@@ -145,6 +150,7 @@ def poll(timeout=0.0, map=None):
             if obj is None:
                 continue
             exception(obj)
+
 
 def loop(timeout=30.0, map=None, count=None):
     """
@@ -625,8 +631,8 @@ class AsyncChat(Dispatcher):
     def _get_terminator(self):
         return self._terminator
 
-    #: The input delimiter andthe terminating condition to be recognized on the
-    #: channel. Maay be any of three types of value, corresponding to three
+    #: The input delimiter and the terminating condition to be recognized on the
+    #: channel. May be any of three types of value, corresponding to three
     #: different ways to handle incoming protocol data.
     #:
     #: +-----------+---------------------------------------------+
