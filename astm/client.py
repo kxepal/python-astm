@@ -87,7 +87,7 @@ class Emitter(object):
     state_machine = RecordsStateMachine
 
     def __init__(self, emitter, encoding, flow_map):
-        self.current = emitter
+        self._emitter = emitter
         self.encoding = encoding
         self.records_sm = self.state_machine(flow_map)
         # flag to signal that user's emitter produces no records
@@ -96,19 +96,7 @@ class Emitter(object):
         self.last_seq = 0
         self.buffer = []
 
-    def send(self, value=None):
-        """Coroutine-like method to emit next record and pass the callback value
-        to their emitter."""
-        if self.buffer:
-            if value:
-                return self.buffer.pop(0)
-
-        try:
-            record = self.current.send(value)
-        except TypeError:
-            record = self.current.send(None)
-
-        self.records_sm(record[0])
+    def _send_record(self, record):
         if isinstance(record, Record):
             record = record.to_astm()
 
@@ -120,6 +108,53 @@ class Emitter(object):
             self.buffer.append(EOT)
 
         return data
+
+    def send(self, value=None):
+        """Passes `value` to the emitter. Semantically acts in same way as
+        :meth:`send` for generators.
+
+        If the emitter has any value within local `buffer` the returned value
+        will be extracted from it unless `value` is :const:`False`.
+
+        :param value: Callback value. :const:`True` indicates that previous
+                      record was successfully received and accepted by server,
+                      :const:`False` signs about his rejection.
+        :type value: bool
+
+        :return: Next record data to send to server.
+        :rtype: bytes
+        """
+        if self.buffer:
+            if value:
+                return self.buffer.pop(0)
+
+        try:
+            record = self._emitter.send(value)
+        except TypeError:
+            record = self._emitter.send(None)
+
+        try:
+            self.records_sm(record[0])
+        except Exception as err:
+            self.throw(type(err), err.args)
+
+        return self._send_record(record)
+
+    def throw(self, exc_type, exc_val=None, exc_tb=None):
+        """Raises exception inside the emitter. Acts in same way as
+        :meth:`throw` for generators.
+
+        If the emitter had catch an exception and return any record value, it
+        will be proceeded in common way.
+        """
+        record = self._emitter.throw(exc_type, exc_val, exc_tb)
+        if record is not None:
+            return self._send_record(record)
+
+    def close(self):
+        """Closes the emitter. Acts in same way as :meth:`close` for generators.
+        """
+        self._emitter.close()
 
 
 class Client(ASTMProtocol):
@@ -168,6 +203,10 @@ class Client(ASTMProtocol):
         """Initiates ASTM communication session."""
         super(Client, self).handle_connect()
         self._open_session()
+
+    def handle_close(self):
+        self.emitter.close()
+        super(Client, self).handle_close()
 
     def _open_session(self):
         self.set_init_state()
