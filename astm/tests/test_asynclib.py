@@ -50,7 +50,7 @@ class exitingdummy:
 
     handle_write_event = handle_read_event
     handle_close = handle_read_event
-    handle_expt_event = handle_read_event
+    handle_exception_event = handle_read_event
 
 class crashingdummy:
     def __init__(self):
@@ -61,7 +61,7 @@ class crashingdummy:
 
     handle_write_event = handle_read_event
     handle_close = handle_read_event
-    handle_expt_event = handle_read_event
+    handle_exception_event = handle_read_event
 
     def handle_error(self):
         self.error_handled = True
@@ -180,7 +180,7 @@ class HelperFunctionTests(unittest.TestCase):
                 def handle_close(self):
                     self.closed = True
 
-                def handle_expt_event(self):
+                def handle_exception_event(self):
                     self.expt = True
 
                 def handle_error(self):
