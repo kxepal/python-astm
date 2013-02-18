@@ -166,6 +166,26 @@ class Mapping(_MappingProxy):
     def items(self):
         return [(key, getattr(self, key)) for key, field in self._fields]
 
+    def as_dict(self):
+        def values(obj):
+            for key, field in obj._fields:
+                value = obj._data[key]
+                if isinstance(value, Mapping):
+                    yield key, dict(values(value))
+                elif isinstance(value, list):
+                    stack = []
+                    for item in value:
+                        if isinstance(item, Mapping):
+                            stack.append(dict(values(item)))
+                        else:
+                            stack.append(item)
+                    yield key, stack
+                elif value is None and field.required:
+                    raise ValueError('Field %r value should not be None' % key)
+                else:
+                    yield key, value
+        return dict(values(self))
+
     def to_astm(self):
         def values(obj):
             for key, field in obj._fields:

@@ -107,8 +107,8 @@ def decode_elem(elem, res):
 def encode(obj, root_tag_name=None, encoding='utf-8'):
     """Encodes Python `obj` to XML string.
 
-    >>> xml = encode({'foo': {'bar': ['baz', None]}})
-    >>> head, body = xml.split(b'\\n')
+    >>> xmlstr = encode({'foo': {'bar': ['baz', None]}})
+    >>> head, body = xmlstr.split(b'\\n')
     >>> head
     b"<?xml version='1.0' encoding='utf-8'?>"
     >>> body
@@ -116,8 +116,8 @@ def encode(obj, root_tag_name=None, encoding='utf-8'):
 
     The `root_tag_name` specified custom root element tag name:
 
-    >>> xml = encode({'foo': {'bar': ['baz', None]}}, 'astm')
-    >>> head, body = xml.split(b'\\n')
+    >>> xmlstr = encode({'foo': {'bar': ['baz', None]}}, 'astm')
+    >>> head, body = xmlstr.split(b'\\n')
     >>> head
     b"<?xml version='1.0' encoding='utf-8'?>"
     >>> body
@@ -125,8 +125,8 @@ def encode(obj, root_tag_name=None, encoding='utf-8'):
 
     Also, custom `encoding` may be specified:
 
-    >>> xml = encode({'foo': {'bar': ['baz', None]}}, encoding='latin1')
-    >>> head, body = xml.split(b'\\n')
+    >>> xmlstr = encode({'foo': {'bar': ['baz', None]}}, encoding='latin1')
+    >>> head, body = xmlstr.split(b'\\n')
     >>> head
     b"<?xml version='1.0' encoding='latin1'?>"
     >>> body
@@ -136,7 +136,6 @@ def encode(obj, root_tag_name=None, encoding='utf-8'):
 
     1. Only unicode string, None values, dicts and iterable sequences are
        allowed or :exc:`TypeError` will be raised:
-
 
     >>> encode({'foo': {'bar': 42}}) #doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -154,14 +153,40 @@ def encode(obj, root_tag_name=None, encoding='utf-8'):
     3. In case when `obj` contains only single key with list of values,
        additional root tag will be created implicitly:
 
-    >>> xml = encode({'foo': ['bar', 'baz']})
-    >>> head, body = xml.split(b'\\n')
+    >>> xmlstr = encode({'foo': ['bar', 'baz']})
+    >>> head, body = xmlstr.split(b'\\n')
     >>> head
     b"<?xml version='1.0' encoding='utf-8'?>"
     >>> body
     b'<foo><foo>bar</foo><foo>baz</foo></foo>'
 
-    :param obj: Python object.
+    4. :class:`~astm.mapping.Record` instances can be also handled as like any
+       other object that implements ``as_dict() -> dict`` method:
+
+    >>> import datetime
+    >>> from astm.mapping import Record, ComponentField, Mapping
+    >>> from astm.mapping import TextField, IntegerField, DateField
+    >>> class Dummy(Record):
+    ...     foo = TextField()
+    ...     bar = ComponentField(Mapping.build(IntegerField(name='boo')))
+    ...     baz = DateField()
+    >>> record = Dummy(
+    ...     foo='boo!',
+    ...     bar=[4],
+    ...     baz=datetime.date(2013, 2, 15))
+    >>> xmlstr = encode({'record': record}, 'astm')
+    >>> data = decode(xmlstr)
+    >>> isinstance(data['astm'], dict)
+    True
+    >>> 'record' in data['astm'] and len(data['astm']) == 1
+    True
+    >>> sorted(data['astm']['record'].items())
+    [('bar', {'boo': '4'}), ('baz', '20130215'), ('foo', 'boo!')]
+    >>> data_1 = decode(encode(record, 'record'))
+    >>> data['astm'] == data_1
+    True
+
+    :param obj: Python dict object or :class:`~astm.mapping.Record` instance.
     :type obj: dict
 
     :param root_tag_name: XML root tag name.
@@ -173,6 +198,8 @@ def encode(obj, root_tag_name=None, encoding='utf-8'):
     :return: XML string.
     :rtype: bytes
     """
+    if hasattr(obj, 'as_dict'):
+        obj = obj.as_dict()
     if hasattr(obj, 'items'):
         if root_tag_name is None:
             kvs = list(obj.items())
@@ -224,7 +251,9 @@ def encode_value(elem, obj):
     elif isinstance(obj, basestring):
         elem.text = obj and obj.strip() or None
         return [elem]
-    elif isinstance(obj, dict):
+    if hasattr(obj, 'as_dict'):
+        obj = obj.as_dict()
+    if isinstance(obj, dict):
         return [encode_dict(elem, obj)]
     elif isinstance(obj, Iterable):
         return encode_list(elem, obj)

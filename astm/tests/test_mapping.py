@@ -719,6 +719,30 @@ class MappingTestCase(unittest.TestCase):
         obj.field = '-' * 10
         self.assertRaises(ValueError, setattr, obj, 'field', '-' * 11)
 
+    def test_as_dict(self):
+        class Dummy(mapping.Mapping):
+            foo = mapping.Field(default='1')
+            bar = mapping.Field(default='2')
+            baz = mapping.Field(default='3')
+        obj = Dummy()
+        data = obj.as_dict()
+        self.assertEqual(data, obj._data)
+        self.assertTrue(data is not obj._data)
+        self.assertEqual(data, {'foo': '1', 'bar': '2', 'baz': '3'})
+
+    def test_as_dict_with_components(self):
+        obj = self.Thing(numbers=[[4, 2], [2, 3], [0, 1]])
+        data = obj.as_dict()
+        self.assertEqual(
+            data,
+            {
+                'numbers': [
+                    {'a': '4', 'b': '2'},
+                    {'a': '2', 'b': '3'},
+                    {'a': '0', 'b': '1'},
+                ]
+            })
+
 
 if __name__ == '__main__':
     unittest.main()
