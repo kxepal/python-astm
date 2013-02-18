@@ -111,30 +111,38 @@ def decode_elem(elem, res):
 def encode(obj, root_tag_name=None, encoding='utf-8'):
     """Encodes Python `obj` to XML string.
 
+    >>> import sys
+    >>> is_py3k = sys.version_info[0] == 3
     >>> xmlstr = encode({'foo': {'bar': ['baz', None]}})
-    >>> head, body = xmlstr.split(b'\\n')
+    >>> if is_py3k:
+    ...   xmlstr = xmlstr.decode()
+    >>> head, body = xmlstr.split('\\n')
     >>> head
-    b"<?xml version='1.0' encoding='utf-8'?>"
+    "<?xml version='1.0' encoding='utf-8'?>"
     >>> body
-    b'<foo><bar>baz</bar><bar/></foo>'
+    '<foo><bar>baz</bar><bar/></foo>'
 
     The `root_tag_name` specified custom root element tag name:
 
     >>> xmlstr = encode({'foo': {'bar': ['baz', None]}}, 'astm')
-    >>> head, body = xmlstr.split(b'\\n')
+    >>> if is_py3k:
+    ...   xmlstr = xmlstr.decode()
+    >>> head, body = xmlstr.split('\\n')
     >>> head
-    b"<?xml version='1.0' encoding='utf-8'?>"
+    "<?xml version='1.0' encoding='utf-8'?>"
     >>> body
-    b'<astm><foo><bar>baz</bar><bar/></foo></astm>'
+    '<astm><foo><bar>baz</bar><bar/></foo></astm>'
 
     Also, custom `encoding` may be specified:
 
     >>> xmlstr = encode({'foo': {'bar': ['baz', None]}}, encoding='latin1')
-    >>> head, body = xmlstr.split(b'\\n')
+    >>> if is_py3k:
+    ...   xmlstr = xmlstr.decode()
+    >>> head, body = xmlstr.split('\\n')
     >>> head
-    b"<?xml version='1.0' encoding='latin1'?>"
+    "<?xml version='1.0' encoding='latin1'?>"
     >>> body
-    b'<foo><bar>baz</bar><bar/></foo>'
+    '<foo><bar>baz</bar><bar/></foo>'
 
     Note, that this conversion assumes that Python `obj` follows set of rules:
 
@@ -158,11 +166,13 @@ def encode(obj, root_tag_name=None, encoding='utf-8'):
        additional root tag will be created implicitly:
 
     >>> xmlstr = encode({'foo': ['bar', 'baz']})
-    >>> head, body = xmlstr.split(b'\\n')
+    >>> if is_py3k:
+    ...   xmlstr = xmlstr.decode()
+    >>> head, body = xmlstr.split('\\n')
     >>> head
-    b"<?xml version='1.0' encoding='utf-8'?>"
+    "<?xml version='1.0' encoding='utf-8'?>"
     >>> body
-    b'<foo><foo>bar</foo><foo>baz</foo></foo>'
+    '<foo><foo>bar</foo><foo>baz</foo></foo>'
 
     4. :class:`~astm.mapping.Record` instances can be also handled as like any
        other object that implements ``as_dict() -> dict`` method:
