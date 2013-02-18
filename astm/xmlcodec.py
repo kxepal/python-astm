@@ -11,6 +11,10 @@ from collections import Iterable
 from io import BytesIO
 from astm.compat import basestring
 try:
+    from itertools import izip
+except ImportError:
+    izip = zip
+try:
     from lxml import etree as xml
     Element = xml.Element
 except ImportError:
@@ -271,5 +275,5 @@ def encode_list(elem, obj):
 
     :return: List of XML Element instances.
     """
-    elems = zip(*[encode_value(Element(elem.tag), item) for item in obj])
+    elems = izip(*[encode_value(Element(elem.tag), item) for item in obj])
     return next(elems)
