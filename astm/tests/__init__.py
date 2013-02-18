@@ -14,7 +14,7 @@ import unittest
 def suite():
     suite = unittest.TestSuite()
     for root, dirs, files in os.walk('.'):
-        for file in files:
+        for file in sorted(files):
             if not (file.startswith('test_') and file.endswith('.py')):
                 continue
             name = file.split('.')[0]
