@@ -231,22 +231,6 @@ class Client(ASTMProtocol):
         client send outgoing requests."""
         loop(*args, **kwargs)
 
-    def push(self, data, with_timer=True):
-        """Pushes data on to the channel's fifo to ensure its transmission with
-        optional timer. Timer is used to control receiving response for sent
-        data within specified time frame. If it's doesn't :meth:`on_timeout`
-        method will be called and data may be sent once again.
-
-        :param data: Sending data.
-        :type data: str
-
-        :param with_timer: Flag to use timer.
-        :type with_timer: bool
-        """
-        if with_timer:
-            self.start_timer()
-        super(Client, self).push(data)
-
     def on_enq(self):
         """Raises :class:`NotAccepted` exception."""
         raise NotAccepted('Client should not receive ENQ.')

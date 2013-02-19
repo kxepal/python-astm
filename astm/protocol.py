@@ -8,9 +8,8 @@
 #
 
 import logging
-from threading import Timer, RLock
 from collections import namedtuple
-from .asynclib import AsyncChat
+from .asynclib import AsyncChat, call_later
 from .records import HeaderRecord, TerminatorRecord
 from .constants import STX, CRLF, ENQ, ACK, NAK, EOT, ENCODING
 
@@ -22,7 +21,6 @@ STATE = namedtuple(
 
 __all__ = ['STATE', 'ASTMProtocol']
 
-Timer = type(Timer(None, None))
 
 class ASTMProtocol(AsyncChat):
     """Common ASTM protocol routines."""
@@ -33,22 +31,19 @@ class ASTMProtocol(AsyncChat):
     astm_terminator = TerminatorRecord
     #: Flag about chunked transfer.
     is_chunked_transfer = None
-    #: Operation timeout value.
-    timeout = None
+    #: IO timer
+    timer = None
 
     encoding = ENCODING
     strip_terminator = False
     _last_recv_data = None
     _last_sent_data = None
     _state = None
-    _lock = RLock()
-    _timer = None
-    _timer_cls = Timer
 
     def __init__(self, sock=None, map=None, timeout=None):
         super(ASTMProtocol, self).__init__(sock, map)
         if timeout is not None:
-            self.timeout = timeout
+            self.timer = call_later(timeout, self.on_timeout)
 
     def found_terminator(self):
         while self.inbox:
@@ -73,9 +68,7 @@ class ASTMProtocol(AsyncChat):
         else:
             handler = lambda: self.default_handler(data)
 
-        with self._lock:
-            resp = handler()
-            self.start_timer()
+        resp = handler()
 
         if resp is not None:
             self.push(resp)
@@ -86,23 +79,6 @@ class ASTMProtocol(AsyncChat):
     def push(self, data):
         self._last_sent_data = data
         return super(ASTMProtocol, self).push(data)
-
-    def start_timer(self):
-        if self.timeout is None:
-            return
-        self.stop_timer()
-        self._timer = self._timer_cls(self.timeout, self.on_timeout)
-        self._timer.daemon = True
-        self._timer.start()
-        log.debug('Timer %r started', self._timer)
-
-    def stop_timer(self):
-        if self.timeout is None or self._timer is None:
-            return
-        if self._timer is not None and self._timer.is_alive():
-            self._timer.cancel()
-        log.debug('Timer %r stopped', self._timer)
-        self._timer = None
 
     def on_enq(self):
         """Calls on <ENQ> message receiving."""
@@ -195,3 +171,14 @@ class ASTMProtocol(AsyncChat):
     def on_timeout(self):
         """Calls when timeout event occurs. Used to limit time for waiting
         response data."""
+        log.warn('Communication timeout')
+
+    def handle_read(self):
+        if self.timer is not None and not self.timer.cancelled:
+            self.timer.reset()
+        super(ASTMProtocol, self).handle_read()
+
+    def handle_close(self):
+        if self.timer is not None and not self.timer.cancelled:
+            self.timer.cancel()
+        super(ASTMProtocol, self).handle_close()
