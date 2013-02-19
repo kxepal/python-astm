@@ -213,14 +213,6 @@ class Client(ASTMProtocol):
         if close_connection:
             self.close_when_done()
 
-    def _retry_enq(self):
-        if self.remain_attempts:
-            self.remain_attempts -= 1
-            log.warn('ENQ was rejected, retrying... (attempts remains: %d)',
-                     self.remain_attempts)
-            return self.push(ENQ)
-        raise Rejected('Server reject session establishment.')
-
     def run(self, *args, **kwargs):
         """Enters into the :func:`polling loop <astm.asynclib.loop>` to let
         client send outgoing requests."""
@@ -257,7 +249,7 @@ class Client(ASTMProtocol):
         request for allowed amount of attempts. For others it send callback
         value :const:`False` to the emitter."""
         if self.state == STATE.init:
-            return self._retry_enq()
+            return self.push(ENQ)
 
         try:
             message = self.emitter.send(False)
@@ -286,5 +278,5 @@ class Client(ASTMProtocol):
     def on_timeout(self):
         """If timeout had occurs for sending ENQ message, it will try to be
         repeated."""
-        if self.state == STATE.init:
-            return self._retry_enq()
+        super(Client, self).on_timeout()
+        self._close_session(True)

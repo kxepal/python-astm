@@ -292,6 +292,20 @@ class ClientTestCase(unittest.TestCase):
         self.assertEqual(client.outbox[-2], constants.EOT)
         self.assertEqual(client.outbox[-1], None)
 
+    def test_timeout_handler(self):
+        def emitter():
+            assert (yield ['H'])
+            assert (yield ['P'])
+            assert (yield ['O'])
+            assert (yield ['L'])
+        client = DummyClient(emitter)
+        client.handle_connect()
+        client.on_ack()
+        client.on_timeout()
+        self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], None)
+
+
 
 if __name__ == '__main__':
     unittest.main()
