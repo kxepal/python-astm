@@ -145,55 +145,6 @@ class StateTestCase(unittest.TestCase):
         obj.on_termination_state = track_call(obj.on_termination_state)
         obj.set_termination_state()
         self.assertTrue(obj.on_termination_state.was_called)
-    
-
-class TimeoutTestCase(unittest.TestCase):
-
-
-    def test_timer_class(self):
-        assert inspect.isclass(DummyProto._timer_cls)
-
-    def test_default_timeout(self):
-        obj = DummyProto()
-        assert obj.timeout is None
-
-    def test_dont_start_timer_if_no_timeout(self):
-        obj = DummyProto()
-        obj.start_timer()
-        assert obj._timer is None
-
-    def test_dont_stor_timer_if_no_timeout(self):
-        obj = DummyProto()
-        obj.stop_timer()
-        assert obj._timer is None
-
-    def test_start_timer(self):
-        obj = DummyProto()
-        obj.timeout = 1
-        obj.start_timer()
-        assert obj._timer.is_alive()
-
-    def test_stop_timer(self):
-        obj = DummyProto()
-        obj.timeout = 1
-        obj.start_timer()
-        obj.stop_timer()
-        assert obj._timer is None
-
-    def test_on_timeout(self):
-        obj = DummyProto()
-        obj.on_timeout = track_call(obj.on_timeout)
-        obj.timeout = 1
-        obj.start_timer()
-        obj._timer.callback()
-        self.assertTrue(obj.on_timeout.was_called)
-
-    def test_timer_is_daemon(self):
-        obj = DummyProto()
-        obj.on_timeout = track_call(obj.on_timeout)
-        obj.timeout = 1
-        obj.start_timer()
-        assert obj._timer.daemon
 
 
 if __name__ == '__main__':

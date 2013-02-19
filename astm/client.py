@@ -174,9 +174,6 @@ class Client(ASTMProtocol):
                     If :const:`None` this timer will be disabled.
     :type timeout: int
 
-    :param retry_attempts: Number or attempts to send record to server.
-    :type retry_attempts: int
-
     :param flow_map: Records flow map. Used by :class:`RecordsStateMachine`.
     :type: dict
     """
@@ -186,13 +183,11 @@ class Client(ASTMProtocol):
     emitter_wrapper = Emitter
 
     def __init__(self, emitter, host='localhost', port=15200,
-                 encoding=None, timeout=20, retry_attempts=3,
+                 encoding=None, timeout=20,
                  flow_map=DEFAULT_RECORDS_FLOW_MAP):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
-        self.remain_attempts = retry_attempts
-        self.retry_attempts = retry_attempts
         self.emitter = self.emitter_wrapper(
             emitter(),
             encoding=encoding or self.encoding,
@@ -218,34 +213,10 @@ class Client(ASTMProtocol):
         if close_connection:
             self.close_when_done()
 
-    def _retry_enq(self):
-        if self.remain_attempts:
-            self.remain_attempts -= 1
-            log.warn('ENQ was rejected, retrying... (attempts remains: %d)',
-                     self.remain_attempts)
-            return self.push(ENQ)
-        raise Rejected('Server reject session establishment.')
-
-    def run(self, *args, **kwargs):
+    def run(self, timeout=1.0, *args, **kwargs):
         """Enters into the :func:`polling loop <astm.asynclib.loop>` to let
         client send outgoing requests."""
-        loop(*args, **kwargs)
-
-    def push(self, data, with_timer=True):
-        """Pushes data on to the channel's fifo to ensure its transmission with
-        optional timer. Timer is used to control receiving response for sent
-        data within specified time frame. If it's doesn't :meth:`on_timeout`
-        method will be called and data may be sent once again.
-
-        :param data: Sending data.
-        :type data: str
-
-        :param with_timer: Flag to use timer.
-        :type with_timer: bool
-        """
-        if with_timer:
-            self.start_timer()
-        super(Client, self).push(data)
+        loop(timeout, *args, **kwargs)
 
     def on_enq(self):
         """Raises :class:`NotAccepted` exception."""
@@ -257,7 +228,6 @@ class Client(ASTMProtocol):
         Provides callback value :const:`True` to the emitter and sends next
         message to server.
         """
-        self.remain_attempts = self.retry_attempts
         if self.state == STATE.init:
             self.set_opened_state()
         elif self.state == STATE.opened:
@@ -279,7 +249,7 @@ class Client(ASTMProtocol):
         request for allowed amount of attempts. For others it send callback
         value :const:`False` to the emitter."""
         if self.state == STATE.init:
-            return self._retry_enq()
+            return self.push(ENQ)
 
         try:
             message = self.emitter.send(False)
@@ -308,5 +278,5 @@ class Client(ASTMProtocol):
     def on_timeout(self):
         """If timeout had occurs for sending ENQ message, it will try to be
         repeated."""
-        if self.state == STATE.init:
-            return self._retry_enq()
+        super(Client, self).on_timeout()
+        self._close_session(True)

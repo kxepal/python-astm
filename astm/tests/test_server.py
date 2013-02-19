@@ -113,6 +113,11 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(self.req.outbox[-1], constants.NAK)
         self.assertEqual(self.req._input_buffer, '')
 
+    def test_close_on_timeout(self):
+        self.req.close = track_call(self.req.close)
+        self.req.on_timeout()
+        self.assertTrue(self.req.close.was_called)
+
 
 class RecordsDispatcherTestCase(unittest.TestCase):
 
