@@ -172,7 +172,7 @@ class Server(Dispatcher):
 
     def __init__(self, host='localhost', port=15200,
                  request=None, dispatcher=None,
-                 timeout=None, encoding=ENCODING):
+                 timeout=None, encoding=None):
         super(Server, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
