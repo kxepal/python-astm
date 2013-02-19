@@ -78,9 +78,13 @@ class RequestHandler(ASTMProtocol):
 
     :param dispatcher: Request handler records dispatcher instance.
     :type dispatcher: :class:`BaseRecordsDispatcher`
+
+    :param timeout: Number of seconds to wait for incoming data before
+                    connection closing.
+    :type timeout: int
     """
-    def __init__(self, sock, dispatcher):
-        super(RequestHandler, self).__init__(sock)
+    def __init__(self, sock, dispatcher, timeout=None):
+        super(RequestHandler, self).__init__(sock, timeout=timeout)
         self.set_init_state()
         self._chunks = []
         host, port = sock.getpeername() if sock is not None else (None, None)
@@ -134,6 +138,10 @@ class RequestHandler(ASTMProtocol):
         self._chunks = []
         return super(RequestHandler, self).discard_input_buffers()
 
+    def on_timeout(self):
+        super(RequestHandler, self).on_timeout()
+        self.close()
+
 
 class Server(Dispatcher):
     """Asyncore driven ASTM server.
@@ -149,19 +157,30 @@ class Server(Dispatcher):
 
     :param dispatcher: Custom request handler records dispatcher. If omitted the
                        :class:`BaseRecordsDispatcher` will be used by default.
+
+    :param timeout: :class:`RequestHandler` connection timeout. If :const:`None`
+                    request handler will wait for data before connection
+                    closing.
+    :type timeout: int
+
+    :param encoding: :class:`Dispatcher <BaseRecordsDispatcher>`\'s encoding.
+    :type encoding: str
     """
 
     request = RequestHandler
     dispatcher = BaseRecordsDispatcher
 
     def __init__(self, host='localhost', port=15200,
-                 request=None, dispatcher=None):
+                 request=None, dispatcher=None,
+                 timeout=None, encoding=ENCODING):
         super(Server, self).__init__()
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.bind((host, port))
         self.listen(5)
         self.pool = []
+        self.timeout = timeout
+        self.encoding = encoding
         if request is not None:
             self.request = request
         if dispatcher is not None:
@@ -172,7 +191,7 @@ class Server(Dispatcher):
         if pair is None:
             return
         sock, addr = pair
-        self.request(sock, self.dispatcher())
+        self.request(sock, self.dispatcher(self.encoding), timeout=self.timeout)
         super(Server, self).handle_accept()
 
     def serve_forever(self, *args, **kwargs):
