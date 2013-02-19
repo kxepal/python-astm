@@ -50,7 +50,7 @@ class exitingdummy:
 
     handle_write_event = handle_read_event
     handle_close = handle_read_event
-    handle_expt_event = handle_read_event
+    handle_exception_event = handle_read_event
 
 class crashingdummy:
     def __init__(self):
@@ -61,7 +61,7 @@ class crashingdummy:
 
     handle_write_event = handle_read_event
     handle_close = handle_read_event
-    handle_expt_event = handle_read_event
+    handle_exception_event = handle_read_event
 
     def handle_error(self):
         self.error_handled = True
@@ -180,7 +180,7 @@ class HelperFunctionTests(unittest.TestCase):
                 def handle_close(self):
                     self.closed = True
 
-                def handle_expt_event(self):
+                def handle_exception_event(self):
                     self.expt = True
 
                 def handle_error(self):
@@ -316,10 +316,81 @@ class DispatcherWithSendTests_UsePoll(DispatcherWithSendTests):
     usepoll = True
 
 
+class CallLaterTests(unittest.TestCase):
+    """Tests for CallLater class."""
+
+    def setUp(self):
+        # remove any unfired scheduled call left behind
+        asynclib.close_all()
+
+    def scheduler(self, timeout=0.01, count=100):
+        while asynclib._SCHEDULED_TASKS and count > 0:
+            asynclib.scheduler()
+            count -= 1
+            time.sleep(timeout)
+
+    def test_interface(self):
+        fun = lambda: 0
+        self.assertRaises(AssertionError, asynclib.call_later, -1, fun)
+        x = asynclib.call_later(3, fun)
+        self.assertRaises(AssertionError, x.delay, -1)
+        self.assertTrue(x.cancelled is False)
+        x.cancel()
+        self.assertTrue(x.cancelled is True)
+        self.assertRaises(AssertionError, x.call)
+        self.assertRaises(AssertionError, x.reset)
+        self.assertRaises(AssertionError, x.delay, 2)
+        self.assertRaises(AssertionError, x.cancel)
+
+    def test_order(self):
+        l = []
+        fun = lambda x: l.append(x)
+        for x in [0.05, 0.04, 0.03, 0.02, 0.01]:
+            asynclib.call_later(x, fun, x)
+        self.scheduler()
+        self.assertEqual(l, [0.01, 0.02, 0.03, 0.04, 0.05])
+
+    def test_delay(self):
+        l = []
+        fun = lambda x: l.append(x)
+        asynclib.call_later(0.01, fun, 0.01).delay(0.07)
+        asynclib.call_later(0.02, fun, 0.02).delay(0.08)
+        asynclib.call_later(0.03, fun, 0.03)
+        asynclib.call_later(0.04, fun, 0.04)
+        asynclib.call_later(0.05, fun, 0.05)
+        asynclib.call_later(0.06, fun, 0.06).delay(0.001)
+        self.scheduler()
+        self.assertEqual(l, [0.06, 0.03, 0.04, 0.05, 0.01, 0.02])
+
+    def test_reset(self):
+        l = []
+        fun = lambda x: l.append(x)
+        asynclib.call_later(0.01, fun, 0.01)
+        asynclib.call_later(0.02, fun, 0.02)
+        asynclib.call_later(0.03, fun, 0.03)
+        x = asynclib.call_later(0.04, fun, 0.04)
+        asynclib.call_later(0.05, fun, 0.05)
+        time.sleep(0.1)
+        x.reset()
+        self.scheduler()
+        self.assertEqual(l, [0.01, 0.02, 0.03, 0.05, 0.04])
+
+    def test_cancel(self):
+        l = []
+        fun = lambda x: l.append(x)
+        asynclib.call_later(0.01, fun, 0.01).cancel()
+        asynclib.call_later(0.02, fun, 0.02)
+        asynclib.call_later(0.03, fun, 0.03)
+        asynclib.call_later(0.04, fun, 0.04)
+        asynclib.call_later(0.05, fun, 0.05).cancel()
+        self.scheduler()
+        self.assertEqual(l, [0.02, 0.03, 0.04])
+
+
 
 def test_main():
     tests = [HelperFunctionTests, DispatcherTests, DispatcherWithSendTests,
-             DispatcherWithSendTests_UsePoll]
+             CallLaterTests, DispatcherWithSendTests_UsePoll]
 
     run_unittest(*tests)
 

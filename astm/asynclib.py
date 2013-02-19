@@ -18,10 +18,12 @@
 .. heavily adapted from original documentation by Sam Rushing
 """
 
+import heapq
 import logging
 import os
 import select
 import socket
+import sys
 import time
 from collections import deque
 from errno import (
@@ -42,6 +44,7 @@ _RERAISEABLE_EXC = (ExitNow, KeyboardInterrupt, SystemExit)
 
 _SOCKET_MAP = {}
 
+_SCHEDULED_TASKS = []
 
 log = logging.getLogger(__name__)
 
@@ -152,7 +155,24 @@ def poll(timeout=0.0, map=None):
             exception(obj)
 
 
-def loop(timeout=30.0, map=None, count=None):
+def scheduler(tasks=None):
+    if tasks is None:
+        tasks = _SCHEDULED_TASKS
+    now = time.time()
+    while tasks and now >= tasks[0].timeout:
+        call = heapq.heappop(tasks)
+        if call.repush:
+            heapq.heappush(tasks, call)
+            call.repush = False
+            continue
+        try:
+            call.call()
+        finally:
+            if not call.cancelled:
+                call.cancel()
+
+
+def loop(timeout=30.0, map=None, tasks=None, count=None):
     """
     Enter a polling loop that terminates after count passes or all open
     channels have been closed. All arguments are optional. The *count*
@@ -172,15 +192,99 @@ def loop(timeout=30.0, map=None, count=None):
     """
     if map is None:
         map = _SOCKET_MAP
+    if tasks is None:
+        tasks = _SCHEDULED_TASKS
 
     if count is None:
-        while map:
-            poll(timeout, map)
+        while map or tasks:
+            if map:
+                poll(timeout, map)
+            if tasks:
+                scheduler()
 
     else:
-        while map and count > 0:
-            poll(timeout, map)
+        while (map or tasks) and count > 0:
+            if map:
+                poll(timeout, map)
+            if tasks:
+                scheduler()
             count -= 1
+
+
+class call_later:
+    """Calls a function at a later time.
+
+    It can be used to asynchronously schedule a call within the polling
+    loop without blocking it. The instance returned is an object that
+    can be used to cancel or reschedule the call.
+    """
+
+    def __init__(self, seconds, target, *args, **kwargs):
+        """
+        - seconds: the number of seconds to wait
+        - target: the callable object to call later
+        - args: the arguments to call it with
+        - kwargs: the keyword arguments to call it with
+        - _tasks: a reserved keyword to specify a different list to
+          store the delayed call instances.
+        """
+        assert callable(target), "%s is not callable" % target
+        assert seconds >= 0, \
+            "%s is not greater than or equal to 0 seconds" % (seconds)
+        self.__delay = seconds
+        self.__target = target
+        self.__args = args
+        self.__kwargs = kwargs
+        self.__tasks = kwargs.pop('_tasks', _SCHEDULED_TASKS)
+        # seconds from the epoch at which to call the function
+        self.timeout = time.time() + self.__delay
+        self.repush = False
+        self.cancelled = False
+        heapq.heappush(self.__tasks, self)
+
+    def __lt__(self, other):
+        return self.timeout <= other.timeout
+
+    def call(self):
+        """Call this scheduled function."""
+        assert not self.cancelled, "Already cancelled"
+        self.__target(*self.__args, **self.__kwargs)
+
+    def reset(self):
+        """Reschedule this call resetting the current countdown."""
+        assert not self.cancelled, "Already cancelled"
+        self.timeout = time.time() + self.__delay
+        self.repush = True
+
+    def delay(self, seconds):
+        """Reschedule this call for a later time."""
+        assert not self.cancelled, "Already cancelled."
+        assert seconds >= 0, \
+            "%s is not greater than or equal to 0 seconds" % (seconds)
+        self.__delay = seconds
+        newtime = time.time() + self.__delay
+        if newtime > self.timeout:
+            self.timeout = newtime
+            self.repush = True
+        else:
+            # XXX - slow, can be improved
+            self.timeout = newtime
+            heapq.heapify(self.__tasks)
+
+    def cancel(self):
+        """Unschedule this call."""
+        assert not self.cancelled, "Already cancelled"
+        self.cancelled = True
+        del self.__target, self.__args, self.__kwargs
+        if self in self.__tasks:
+            pos = self.__tasks.index(self)
+            if pos == 0:
+                heapq.heappop(self.__tasks)
+            elif pos == len(self.__tasks) - 1:
+                self.__tasks.pop(pos)
+            else:
+                self.__tasks[pos] = self.__tasks.pop()
+                heapq._siftup(self.__tasks, pos)
 
 
 class Dispatcher(object):
@@ -549,9 +653,11 @@ class Dispatcher(object):
         self.close()
 
 
-def close_all(map=None, ignore_all=False):
+def close_all(map=None, tasks=None, ignore_all=False):
     if map is None:
         map = _SOCKET_MAP
+    if tasks is None:
+        tasks = _SCHEDULED_TASKS
     for x in list(map.values()):
         try:
             x.close()
@@ -566,6 +672,16 @@ def close_all(map=None, ignore_all=False):
             if not ignore_all:
                 raise
     map.clear()
+
+    for x in tasks:
+        try:
+            x.cancel()
+        except _RERAISEABLE_EXC:
+            raise
+        except Exception:
+            if not ignore_all:
+                raise
+    del tasks[:]
 
 
 class AsyncChat(Dispatcher):
