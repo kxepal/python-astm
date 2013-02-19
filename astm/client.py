@@ -213,10 +213,10 @@ class Client(ASTMProtocol):
         if close_connection:
             self.close_when_done()
 
-    def run(self, *args, **kwargs):
+    def run(self, timeout=1.0, *args, **kwargs):
         """Enters into the :func:`polling loop <astm.asynclib.loop>` to let
         client send outgoing requests."""
-        loop(*args, **kwargs)
+        loop(timeout, *args, **kwargs)
 
     def on_enq(self):
         """Raises :class:`NotAccepted` exception."""
