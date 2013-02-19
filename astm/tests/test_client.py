@@ -63,7 +63,7 @@ class ClientTestCase(unittest.TestCase):
 
     def test_init_state(self):
         client = DummyClient(emitter)
-        self.assertEqual(client.state,None)
+        self.assertEqual(client.state, None)
 
     def test_open_connection(self):
         client = DummyClient(simple_emitter)
@@ -82,26 +82,6 @@ class ClientTestCase(unittest.TestCase):
     def test_fail_on_message(self):
         client = DummyClient(emitter)
         self.assertRaises(NotAccepted, client.on_message)
-
-    def test_retry_enq_request(self):
-        client = DummyClient(simple_emitter)
-        client.handle_connect()
-        client.on_nak()
-        self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
-        self.assertEqual(client.outbox[0], constants.ENQ)
-
-    def test_retry_enq_request_on_timeout(self):
-        client = DummyClient(simple_emitter)
-        client.handle_connect()
-        client.on_timeout()
-        self.assertEqual(client.retry_attempts, client.remain_attempts + 1)
-        self.assertEqual(client.outbox[0], constants.ENQ)
-
-    def test_raise_exception_if_enq_was_not_accepted(self):
-        client = DummyClient(simple_emitter)
-        client.handle_connect()
-        client.remain_attempts = 0
-        self.assertRaises(Rejected, client.on_nak)
 
     def test_callback_on_sent_failure(self):
         def emitter():
@@ -201,21 +181,6 @@ class ClientTestCase(unittest.TestCase):
         client.handle_connect()
         client.on_ack()
         self.assertRaises(AssertionError, client.on_nak)
-
-    def test_retry_enq_on_nak(self):
-        def emitter():
-            yield ['H']
-            yield ['P']
-            yield ['O']
-            yield ['L']
-        client = DummyClient(emitter)
-        client.handle_connect()
-        self.assertEqual(client.outbox[-1], constants.ENQ)
-        client.on_nak()
-        self.assertEqual(client.outbox[-1], constants.ENQ)
-        client.on_nak()
-        self.assertEqual(client.outbox[-1], constants.ENQ)
-        self.assertEqual(list(client.outbox), [constants.ENQ]*3)
 
     def test_nak_callback(self):
         def emitter():

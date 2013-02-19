@@ -174,9 +174,6 @@ class Client(ASTMProtocol):
                     If :const:`None` this timer will be disabled.
     :type timeout: int
 
-    :param retry_attempts: Number or attempts to send record to server.
-    :type retry_attempts: int
-
     :param flow_map: Records flow map. Used by :class:`RecordsStateMachine`.
     :type: dict
     """
@@ -186,13 +183,11 @@ class Client(ASTMProtocol):
     emitter_wrapper = Emitter
 
     def __init__(self, emitter, host='localhost', port=15200,
-                 encoding=None, timeout=20, retry_attempts=3,
+                 encoding=None, timeout=20,
                  flow_map=DEFAULT_RECORDS_FLOW_MAP):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
-        self.remain_attempts = retry_attempts
-        self.retry_attempts = retry_attempts
         self.emitter = self.emitter_wrapper(
             emitter(),
             encoding=encoding or self.encoding,
@@ -241,7 +236,6 @@ class Client(ASTMProtocol):
         Provides callback value :const:`True` to the emitter and sends next
         message to server.
         """
-        self.remain_attempts = self.retry_attempts
         if self.state == STATE.init:
             self.set_opened_state()
         elif self.state == STATE.opened:
