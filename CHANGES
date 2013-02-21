@@ -1,0 +1,46 @@
+
+Release 0.4.1 (2013-02-01)
+------------------------
+
+- Fix timer for Python 2.x
+
+Release 0.4 (2013-02-01)
+------------------------
+
+- Fix astm.codec module: now it only decodes bytes to unicode and encodes
+  unicode to bytes;
+- Add records dispatcher for server request handler;
+- Add session support for astm client emitter;
+- Repeat ENQ on timeout;
+- Code cleanup and refactoring;
+- Set minimal Python version to 2.6, but 3.2-3.3 also works well.
+
+Release 0.3 (2012-12-15)
+------------------------
+
+- Refactor OmniLab module;
+- Rename astm.proto module to astm.protocol;
+- Add support for network operation timeouts;
+- Client now better communicates with ASTM records emitter;
+- Improve logging;
+- Code cleanup;
+- More tests for base functionality.
+
+
+Release 0.2 (2012-12-11)
+------------------------
+
+- Fork, mix and refactor asyncore/asynchat modules to astm.asynclib module which
+  provides more suitable methods to implement asynchronous operations for our
+  task;
+- Implement ASTM client and server that handles common protocol routines.
+
+
+Release 0.1 (2012-12-09)
+------------------------
+
+- Base decode/encode functions for ASTM data format;
+- Small object model mapping based on couchdb-python solution that helps to
+  design records as classes, access to fields by name alias and provide
+  autoconversion between Python objects and ASTM raw values;
+- Add demo support of OmniLab LabOnline product.
