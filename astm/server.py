@@ -98,7 +98,8 @@ class RequestHandler(ASTMProtocol):
             self.terminator = [CRLF, EOT]
             return ACK
         else:
-            raise NotAccepted('ENQ is not expected')
+            log.error('ENQ is not expected')
+            return NAK
 
     def on_ack(self):
         raise NotAccepted('Server should not be ACKed.')

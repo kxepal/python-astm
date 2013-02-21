@@ -49,8 +49,8 @@ class RequestHandlerTestCase(unittest.TestCase):
         sys.stderr = self.stderr
 
     def test_allow_enq_only_for_init_state(self):
-        self.req.on_enq()
-        self.assertRaises(NotAccepted, self.req.on_enq)
+        self.assertEqual(self.req.on_enq(), constants.ACK)
+        self.assertEqual(self.req.on_enq(), constants.NAK)
 
     def test_allow_eot_only_for_transfer_state(self):
         self.assertRaises(InvalidState, self.req.on_eot)
