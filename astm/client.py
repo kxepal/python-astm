@@ -12,9 +12,9 @@ import socket
 from .asynclib import loop
 from .codec import encode_message
 from .constants import ENQ, EOT
-from .exceptions import NotAccepted, Rejected
+from .exceptions import NotAccepted
 from .mapping import Record
-from .protocol import ASTMProtocol, STATE
+from .protocol import ASTMProtocol
 
 log = logging.getLogger(__name__)
 
@@ -193,6 +193,7 @@ class Client(ASTMProtocol):
             encoding=encoding or self.encoding,
             flow_map=flow_map,
         )
+        self.terminator = 1
 
     def handle_connect(self):
         """Initiates ASTM communication session."""
@@ -204,11 +205,9 @@ class Client(ASTMProtocol):
         super(Client, self).handle_close()
 
     def _open_session(self):
-        self.set_init_state()
         self.push(ENQ)
 
     def _close_session(self, close_connection=False):
-        self.set_init_state()
         self.push(EOT)
         if close_connection:
             self.close_when_done()
@@ -228,11 +227,6 @@ class Client(ASTMProtocol):
         Provides callback value :const:`True` to the emitter and sends next
         message to server.
         """
-        if self.state == STATE.init:
-            self.set_opened_state()
-        elif self.state == STATE.opened:
-            self.set_transfer_state()
-
         try:
             message = self.emitter.send(True)
         except StopIteration:
@@ -248,7 +242,7 @@ class Client(ASTMProtocol):
         If it was received on ENQ request, the client tries to repeat last
         request for allowed amount of attempts. For others it send callback
         value :const:`False` to the emitter."""
-        if self.state == STATE.init:
+        if self._last_sent_data == ENQ:
             return self.push(ENQ)
 
         try:
@@ -262,10 +256,6 @@ class Client(ASTMProtocol):
             self.push(message)
             if message == EOT:
                 self._open_session()
-
-    def set_transfer_state(self):
-        super(Client, self).set_transfer_state()
-        self.terminator = 1
 
     def on_eot(self):
         """Raises :class:`NotAccepted` exception."""

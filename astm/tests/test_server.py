@@ -12,7 +12,7 @@ import sys
 import unittest
 from astm.exceptions import NotAccepted, InvalidState
 from astm.server import RequestHandler, BaseRecordsDispatcher
-from astm import codec, constants, protocol, records
+from astm import codec, constants, records
 from astm.tests.utils import DummyMixIn, track_call
 
 def null_dispatcher(*args, **kwargs):
@@ -22,8 +22,8 @@ def null_dispatcher(*args, **kwargs):
 class DummyRequestHandler(DummyMixIn, RequestHandler):
     dummy_dispatcher_called_time = 0
 
-    def __init__(self):
-        RequestHandler.__init__(self, None, null_dispatcher)
+    def __init__(self, dispatcher=null_dispatcher):
+        RequestHandler.__init__(self, None, dispatcher)
 
     def default_handler(self, data):
         return constants.NAK
@@ -48,23 +48,14 @@ class RequestHandlerTestCase(unittest.TestCase):
         sys.stderr.close()
         sys.stderr = self.stderr
 
-    def test_init_state(self):
-        assert self.req.state == protocol.STATE.init
-
     def test_allow_enq_only_for_init_state(self):
         self.req.on_enq()
-        self.req.state = protocol.STATE.opened
-        self.assertRaises(NotAccepted, self.req.on_enq)
-        self.req.state = protocol.STATE.transfer
         self.assertRaises(NotAccepted, self.req.on_enq)
 
     def test_allow_eot_only_for_transfer_state(self):
-        self.req.state = protocol.STATE.transfer
+        self.assertRaises(InvalidState, self.req.on_eot)
+        self.req.on_enq()
         self.req.on_eot()
-        self.req.state = protocol.STATE.init
-        self.assertRaises(InvalidState, self.req.on_eot)
-        self.req.state = protocol.STATE.opened
-        self.assertRaises(InvalidState, self.req.on_eot)
 
     def test_fail_on_enq(self):
         self.assertRaises(NotAccepted, self.req.on_ack)
@@ -75,13 +66,22 @@ class RequestHandlerTestCase(unittest.TestCase):
     def test_reject_message_on_invalid_state(self):
         self.assertEqual(self.req.on_message(), constants.NAK)
 
-    def test_reject_message_on_parse_error(self):
-        self.req.state = protocol.STATE.transfer
+    def test_reject_message_on_handle_error(self):
+        self.req.on_enq()
         self.assertEqual(self.req.on_message(), constants.NAK)
         self.assertFalse(self.req.dispatcher.was_called)
 
+    def test_reject_message_on_dispatch_error(self):
+        def dispatcher(message):
+            codec.decode_message(message, 'latin-1')
+        req = DummyRequestHandler(track_call(dispatcher))
+        req.on_enq()
+        req._last_recv_data = '|foo'.encode()
+        self.assertEqual(req.on_message(), constants.NAK)
+        self.assertTrue(req.dispatcher.was_called)
+
     def test_accept_message(self):
-        self.req.state = protocol.STATE.transfer
+        self.req.on_enq()
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                         .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
@@ -89,7 +89,7 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertFalse(self.req._chunks)
 
     def test_accept_message_chunk(self):
-        self.req.state = protocol.STATE.transfer
+        self.req.on_enq()
         self.req.is_chunked_transfer = True
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                  .to_astm()])[0]
@@ -98,7 +98,7 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertTrue(self.req._chunks)
 
     def test_join_chunks_on_last_one(self):
-        self.req.state = protocol.STATE.transfer
+        self.req.on_enq()
         self.req.is_chunked_transfer = False
         self.req._chunks = [b'']
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
@@ -107,7 +107,6 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertFalse(self.req._chunks)
 
     def test_cleanup_input_buffer_on_message_reject(self):
-        self.req.state = protocol.STATE.init
         self.req.handle_read()
         self.assertEqual(self.req.dummy_dispatcher_called_time, 1)
         self.assertEqual(self.req.outbox[-1], constants.NAK)

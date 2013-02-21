@@ -8,9 +8,9 @@
 #
 
 import unittest
-from astm.exceptions import NotAccepted, Rejected, InvalidState
+from astm.exceptions import NotAccepted
 from astm.client import Client
-from astm import constants, protocol
+from astm import constants
 from astm.tests.utils import DummyMixIn
 
 
@@ -61,14 +61,9 @@ def simple_emitter():
 
 class ClientTestCase(unittest.TestCase):
 
-    def test_init_state(self):
-        client = DummyClient(emitter)
-        self.assertEqual(client.state, None)
-
     def test_open_connection(self):
         client = DummyClient(simple_emitter)
         client.handle_connect()
-        self.assertEqual(client.state, protocol.STATE.init)
         self.assertEqual(client.outbox[0], constants.ENQ)
 
     def test_fail_on_enq(self):
@@ -244,7 +239,6 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
         while client.outbox[-1] is not None:
             client.on_ack()
-        self.assertEqual(client.state, protocol.STATE.init)
 
     def test_session_in_loop(self):
         def emitter():

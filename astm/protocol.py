@@ -8,18 +8,13 @@
 #
 
 import logging
-from collections import namedtuple
 from .asynclib import AsyncChat, call_later
 from .records import HeaderRecord, TerminatorRecord
-from .constants import STX, CRLF, ENQ, ACK, NAK, EOT, ENCODING
+from .constants import STX,  ENQ, ACK, NAK, EOT, ENCODING
 
 log = logging.getLogger(__name__)
 
-#: ASTM protocol states set.
-STATE = namedtuple(
-    'ASTMState', ['init', 'opened', 'transfer', 'termination'])(*range(4))
-
-__all__ = ['STATE', 'ASTMProtocol']
+__all__ = ['ASTMProtocol']
 
 
 class ASTMProtocol(AsyncChat):
@@ -94,79 +89,6 @@ class ASTMProtocol(AsyncChat):
 
     def on_message(self):
         """Calls on ASTM message receiving."""
-
-    def _get_state(self):
-        return self._state
-
-    def _set_state(self, value):
-        assert value in STATE
-        self._state = value
-
-    #: ASTM handler state value:
-    #:
-    #: - ``init``: Neutral state
-    #: - ``opened``: ENQ message was sent, waiting for ACK
-    #: - ``transfer``: Data transfer processing
-    #:
-    state = property(_get_state, _set_state)
-
-    def set_init_state(self):
-        """Sets handler state to INIT (0).
-
-        In ASTM specification this state also called as `neutral` which means
-        that handler is ready to establish data transfer.
-        """
-        self.state = STATE.init
-        self.on_init_state()
-        log.debug('Switched to init state')
-
-    def set_opened_state(self):
-        """Sets handler state to OPENED (1).
-
-        Intermediate state that only means for client implementation. On this
-        state client had already sent <ENQ> and awaits for <ACK> or
-        <NAK> response. On <ACK> it switched his state to `transfer`.
-        """
-        self.terminator = 1
-        self.state = STATE.opened
-        self.on_opened_state()
-        log.debug('Switched to opened state')
-
-    def set_transfer_state(self):
-        """Sets handler state to TRANSFER (2).
-
-        In this state handler is able to send or receive ASTM messages depending
-        on his role (client or server).
-        """
-        self.state = STATE.transfer
-        self.on_transfer_state()
-        log.debug('Switched to transfer state')
-
-    def set_termination_state(self):
-        """Sets handler state to TERMINATION (3).
-
-        This state is used on transfer session termination to let client or
-        server perform clean up actions before switch back to INIT (0) one.
-        """
-        self.state = STATE.termination
-        self.on_termination_state()
-        log.debug('Switched to termination state')
-
-    def on_init_state(self):
-        """Calls on set state INIT (0)"""
-        self.terminator = 1
-
-    def on_opened_state(self):
-        """Calls on set state OPENED (1)"""
-        self.terminator = 1
-
-    def on_transfer_state(self):
-        """Calls on set state TRANSFER (2)"""
-        self.terminator = [CRLF, EOT]
-
-    def on_termination_state(self):
-        """Calls on set state TERMINATION (3)"""
-        self.terminator = 1
 
     def on_timeout(self):
         """Calls when timeout event occurs. Used to limit waiting time for

@@ -7,7 +7,6 @@
 # you should have received as part of this distribution.
 #
 
-import inspect
 import unittest
 from astm import constants
 from astm.tests.utils import DummyMixIn, track_call
@@ -94,57 +93,6 @@ class DispatcherTestCase(unittest.TestCase):
         obj.on_message = lambda: '42'
         obj.dispatch(constants.STX)
         self.assertEqual(obj.outbox.pop(), '42')
-
-
-class StateTestCase(unittest.TestCase):
-
-    def test_default_state(self):
-        obj = DummyProto()
-        assert obj.state is None
-        
-    def test_set_init_state(self):
-        obj = DummyProto()
-        obj.set_init_state()
-        self.assertEqual(obj.state, protocol.STATE.init)
-
-    def test_on_init_state(self):
-        obj = DummyProto()
-        obj.on_init_state = track_call(obj.on_init_state)
-        obj.set_init_state()
-        self.assertTrue(obj.on_init_state.was_called)
-
-    def test_set_opened_state(self):
-        obj = DummyProto()
-        obj.set_opened_state()
-        self.assertEqual(obj.state, protocol.STATE.opened)
-
-    def test_on_opened_state(self):
-        obj = DummyProto()
-        obj.on_opened_state = track_call(obj.on_opened_state)
-        obj.set_opened_state()
-        self.assertTrue(obj.on_opened_state.was_called)
-
-    def test_set_transfer_state(self):
-        obj = DummyProto()
-        obj.set_transfer_state()
-        self.assertEqual(obj.state, protocol.STATE.transfer)
-
-    def test_on_transfer_state(self):
-        obj = DummyProto()
-        obj.on_transfer_state = track_call(obj.on_transfer_state)
-        obj.set_transfer_state()
-        self.assertTrue(obj.on_transfer_state.was_called)
-
-    def test_set_termination_state(self):
-        obj = DummyProto()
-        obj.set_termination_state()
-        self.assertEqual(obj.state, protocol.STATE.termination)
-
-    def test_on_termination_state(self):
-        obj = DummyProto()
-        obj.on_termination_state = track_call(obj.on_termination_state)
-        obj.set_termination_state()
-        self.assertTrue(obj.on_termination_state.was_called)
 
 
 if __name__ == '__main__':

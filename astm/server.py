@@ -11,9 +11,9 @@ import logging
 import socket
 from .asynclib import Dispatcher, loop
 from .codec import decode_message, is_chunked_message, join
-from .constants import ACK, NAK, ENCODING
+from .constants import ACK, CRLF, EOT, NAK, ENCODING
 from .exceptions import InvalidState, NotAccepted
-from .protocol import ASTMProtocol, STATE
+from .protocol import ASTMProtocol
 
 log = logging.getLogger(__name__)
 
@@ -85,19 +85,20 @@ class RequestHandler(ASTMProtocol):
     """
     def __init__(self, sock, dispatcher, timeout=None):
         super(RequestHandler, self).__init__(sock, timeout=timeout)
-        self.set_init_state()
         self._chunks = []
         host, port = sock.getpeername() if sock is not None else (None, None)
         self.client_info = {'host': host, 'port': port}
         self.dispatcher = dispatcher
+        self._is_transfer_state = False
+        self.terminator = 1
 
     def on_enq(self):
-        if self.state == STATE.init:
-            self.set_transfer_state()
+        if not self._is_transfer_state:
+            self._is_transfer_state = True
+            self.terminator = [CRLF, EOT]
             return ACK
         else:
-            raise NotAccepted('ENQ is not expected while handler in state %r'
-            % self.state)
+            raise NotAccepted('ENQ is not expected')
 
     def on_ack(self):
         raise NotAccepted('Server should not be ACKed.')
@@ -106,12 +107,14 @@ class RequestHandler(ASTMProtocol):
         raise NotAccepted('Server should not be NAKed.')
 
     def on_eot(self):
-        if self.state != STATE.transfer:
+        if self._is_transfer_state:
+            self._is_transfer_state = False
+            self.terminator = 1
+        else:
             raise InvalidState('Server is not ready to accept EOT message.')
-        self.set_init_state()
 
     def on_message(self):
-        if self.state != STATE.transfer:
+        if not self._is_transfer_state:
             self.discard_input_buffers()
             return NAK
         else:
