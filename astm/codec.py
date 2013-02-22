@@ -15,8 +15,9 @@ from .constants import (
 )
 try:
     from itertools import izip_longest
-except ImportError: # Python 3
+except ImportError:  # Python 3
     from itertools import zip_longest as izip_longest
+
 
 def decode(data, encoding=ENCODING):
     """Common ASTM decoding function that tries to guess which kind of data it
@@ -45,7 +46,7 @@ def decode(data, encoding=ENCODING):
     """
     if not isinstance(data, bytes):
         raise TypeError('bytes expected, got %r' % data)
-    if data.startswith(STX): # may be decode message \x02...\x03CS\r\n
+    if data.startswith(STX):  # may be decode message \x02...\x03CS\r\n
         seq, records, cs = decode_message(data, encoding)
         return records
     byte = data[:1].decode()
@@ -53,6 +54,7 @@ def decode(data, encoding=ENCODING):
         seq, records = decode_frame(data, encoding)
         return records
     return [decode_record(data, encoding)]
+
 
 def decode_message(message, encoding):
     """Decodes complete ASTM message that is sent or received due
@@ -88,6 +90,7 @@ def decode_message(message, encoding):
     seq, records = decode_frame(frame, encoding)
     return seq, records, cs.decode()
 
+
 def decode_frame(frame, encoding):
     """Decodes ASTM frame: list of records followed by sequence number."""
     if not isinstance(frame, bytes):
@@ -107,6 +110,7 @@ def decode_frame(frame, encoding):
     return seq, [decode_record(record, encoding)
                  for record in records.split(RECORD_SEP)]
 
+
 def decode_record(record, encoding):
     """Decodes ASTM record message."""
     fields = []
@@ -120,15 +124,18 @@ def decode_record(record, encoding):
         fields.append([None, item][bool(item)])
     return fields
 
+
 def decode_component(field, encoding):
     """Decodes ASTM field component."""
     return [[None, item.decode(encoding)][bool(item)]
             for item in field.split(COMPONENT_SEP)]
 
+
 def decode_repeated_component(component, encoding):
     """Decodes ASTM field repeated component."""
     return [decode_component(item, encoding)
             for item in component.split(REPEAT_SEP)]
+
 
 def encode(records, encoding=ENCODING, size=None):
     """Encodes list of records into single ASTM message, also called as "packed"
@@ -138,7 +145,7 @@ def encode(records, encoding=ENCODING, size=None):
     instead.
 
     If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
-    than it will be splitted by chunks.
+    than it will be split by chunks.
 
     :param records: List of ASTM records.
     :type records: list
@@ -154,11 +161,12 @@ def encode(records, encoding=ENCODING, size=None):
         return list(split(msg, size))
     return [msg]
 
+
 def iter_encode(records, encoding=ENCODING, size=None):
     """Encodes and emits each record as separate message.
 
     If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
-    than it will be splitted by chunks.
+    than it will be split by chunks.
 
     :yields: ASTM message chunks.
     :rtype: str
@@ -173,6 +181,7 @@ def iter_encode(records, encoding=ENCODING, size=None):
         else:
             idx += 1
             yield msg
+
 
 def encode_message(seq, records, encoding):
     """Encodes ASTM message.
@@ -193,6 +202,7 @@ def encode_message(seq, records, encoding):
                            for record in records)
     data = b''.join((str(seq).encode(), data, CR, ETX))
     return b''.join([STX, data, make_checksum(data), CR, LF])
+
 
 def encode_record(record, encoding):
     """Encodes single ASTM record.
@@ -223,6 +233,7 @@ def encode_record(record, encoding):
             _append(unicode(field).encode(encoding))
     return FIELD_SEP.join(fields)
 
+
 def encode_component(component, encoding):
     """Encodes ASTM record field components."""
     items = []
@@ -241,10 +252,12 @@ def encode_component(component, encoding):
 
     return COMPONENT_SEP.join(items).rstrip(COMPONENT_SEP)
 
+
 def encode_repeated_component(components, encoding):
     """Encodes repeated components."""
     return REPEAT_SEP.join(encode_component(item, encoding)
                            for item in components)
+
 
 def make_checksum(message):
     """Calculates checksum for specified message.
@@ -259,10 +272,12 @@ def make_checksum(message):
         message = map(ord, message)
     return hex(sum(message) & 0xFF)[2:].upper().zfill(2).encode()
 
+
 def make_chunks(s, n):
-    iter_bytes = (s[i:i+1] for i in range(len(s)))
+    iter_bytes = (s[i:i + 1] for i in range(len(s)))
     return [b''.join(item)
-            for item in izip_longest(*[iter_bytes]*n, fillvalue=b'')]
+            for item in izip_longest(*[iter_bytes] * n, fillvalue=b'')]
+
 
 def split(msg, size):
     stx, frame, msg, tail = msg[:1], msg[1:2], msg[2:-6], msg[-6:]
@@ -279,11 +294,13 @@ def split(msg, size):
     item = b''.join([str(idx + frame + 1).encode(), last, CR, ETX])
     yield b''.join([STX, item, make_checksum(item), CRLF])
 
+
 def join(chunks):
     chunks = list(chunks)
     chunks, last = chunks[:-1], chunks[-1]
     msg = b'1' + b''.join(c[2:-5] for c in chunks) + last[2:-4]
     return b''.join([STX, msg, make_checksum(msg), CRLF])
+
 
 def is_chunked_message(message):
     """Checks plain message for chunked byte."""
