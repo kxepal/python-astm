@@ -29,13 +29,13 @@ CR  = b'\x0D'
 #: CR + LF shortcut.
 CRLF = CR + LF
 
-#: Message records delimeter.
+#: Message records delimiter.
 RECORD_SEP    = b'\x0D' # \r #
-#: Record fields delimeter.
+#: Record fields delimiter.
 FIELD_SEP     = b'\x7C' # |  #
 #: Delimeter for repeated fields.
 REPEAT_SEP    = b'\x5C' # \  #
-#: Field components delimeter.
+#: Field components delimiter.
 COMPONENT_SEP = b'\x5E' # ^  #
 #: Date escape token.
 ESCAPE_SEP    = b'\x26' # &  #

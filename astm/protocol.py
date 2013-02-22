@@ -33,7 +33,6 @@ class ASTMProtocol(AsyncChat):
     strip_terminator = False
     _last_recv_data = None
     _last_sent_data = None
-    _state = None
 
     def __init__(self, sock=None, map=None, timeout=None):
         super(ASTMProtocol, self).__init__(sock, map)
