@@ -313,9 +313,7 @@ def join(chunks):
     :param chunks: List of chunks as `bytes`.
     :type chunks: iterable
     """
-    chunks = list(chunks)
-    chunks, last = chunks[:-1], chunks[-1]
-    msg = b'1' + b''.join(c[2:-5] for c in chunks) + last[2:-4]
+    msg = b'1' + b''.join(c[2:-5] for c in chunks) + ETX
     return b''.join([STX, msg, make_checksum(msg), CRLF])
 
 
