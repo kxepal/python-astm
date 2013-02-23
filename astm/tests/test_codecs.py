@@ -163,30 +163,32 @@ class EncodeTestCase(unittest.TestCase):
 class ChunkedEncodingTestCase(unittest.TestCase):
 
     def test_encode_chunky(self):
-        recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
-        res = codec.encode(recs, size=4)
+        recs = [['foo', 1], ['bar', 24], ['baz', [1, 2, 3], 'boo']]
+        res = codec.encode(recs, size=14)
         self.assertTrue(isinstance(res, list))
-        self.assertEqual(len(res), 7)
+        self.assertEqual(len(res), 4)
 
-        self.assertEqual(res[0], f('{STX}1foo|{ETB}08{CRLF}'))
-        self.assertEqual(res[1], f('{STX}21{CR}ba{ETB}4A{CRLF}'))
-        self.assertEqual(res[2], f('{STX}3r|24{ETB}9E{CRLF}'))
-        self.assertEqual(res[3], f('{STX}4{CR}baz{ETB}95{CRLF}'))
-        self.assertEqual(res[4], f('{STX}5|1^2{ETB}89{CRLF}'))
-        self.assertEqual(res[5], f('{STX}6^3|b{ETB}BC{CRLF}'))
-        self.assertEqual(res[6], f('{STX}7oo{CR}{ETX}25{CRLF}'))
+        self.assertEqual(res[0], f('{STX}1foo|1{CR}b{ETB}A8{CRLF}'))
+        self.assertEqual(len(res[0]), 14)
+        self.assertEqual(res[1], f('{STX}2ar|24{CR}b{ETB}6D{CRLF}'))
+        self.assertEqual(len(res[1]), 14)
+        self.assertEqual(res[2], f('{STX}3az|1^2^{ETB}C0{CRLF}'))
+        self.assertEqual(len(res[2]), 14)
+        self.assertEqual(res[3], f('{STX}43|boo{CR}{ETX}33{CRLF}'))
+        self.assertLessEqual(len(res[3]), 14)
+
 
     def test_decode_chunks(self):
-        recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
-        res = codec.encode(recs, size=4)
+        recs = [['foo', 1], ['bar', 24], ['baz', [1, 2, 3], 'boo']]
+        res = codec.encode(recs, size=14)
         for item in res:
             codec.decode(item)
 
     def test_join_chunks(self):
-        recs = [['foo', 1], ['bar', 24], ['baz', [1,2,3], 'boo']]
-        chunks = codec.encode(recs, size=4)
+        recs = [['foo', '1'], ['bar', '24'], ['baz', ['1', '2', '3'], 'boo']]
+        chunks = codec.encode(recs, size=14)
         msg = codec.join(chunks)
-        codec.decode(msg)
+        self.assertEqual(codec.decode(msg), recs)
 
     def test_encode_as_single_message(self):
         res = codec.encode_message(2, [['A', 0]], 'ascii')

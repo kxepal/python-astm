@@ -280,12 +280,24 @@ def make_chunks(s, n):
 
 
 def split(msg, size):
+    """Split `msg` into chunks with specified `size`.
+
+    Chunk `size` value couldn't be less then 7 since each chunk goes with at
+    least 7 special characters: STX, frame number, ETX or ETB, checksum and
+    message terminator.
+
+    :param msg: ASTM message.
+    :type msg: bytes
+
+    :yield: `bytes`
+    """
     stx, frame, msg, tail = msg[:1], msg[1:2], msg[2:-6], msg[-6:]
     assert stx == STX
     assert frame.isdigit()
     assert tail.endswith(CRLF)
+    assert size is not None and size >= 7
     frame = int(frame)
-    chunks = make_chunks(msg, size)
+    chunks = make_chunks(msg, size - 7)
     chunks, last = chunks[:-1], chunks[-1]
     idx = 0
     for idx, chunk in enumerate(chunks):
@@ -296,6 +308,11 @@ def split(msg, size):
 
 
 def join(chunks):
+    """Merges ASTM message `chunks` into single message.
+
+    :param chunks: List of chunks as `bytes`.
+    :type chunks: iterable
+    """
     chunks = list(chunks)
     chunks, last = chunks[:-1], chunks[-1]
     msg = b'1' + b''.join(c[2:-5] for c in chunks) + last[2:-4]
