@@ -73,7 +73,7 @@ class Emitter(object):
     Used as wrapper for user provided one to provide proper routines around for
     sending Header and Terminator records.
 
-    :param emitter: Activated generator/coroutine
+    :param emitter: Generator/coroutine.
 
     :param encoding: Data encoding.
     :type encoding: str
@@ -87,7 +87,8 @@ class Emitter(object):
     state_machine = RecordsStateMachine
 
     def __init__(self, emitter, encoding, flow_map):
-        self._emitter = emitter
+        self._emitter = emitter()
+        self._is_active = False
         self.encoding = encoding
         self.records_sm = self.state_machine(flow_map)
         # flag to signal that user's emitter produces no records
@@ -124,14 +125,12 @@ class Emitter(object):
         :return: Next record data to send to server.
         :rtype: bytes
         """
-        if self.buffer:
-            if value:
-                return self.buffer.pop(0)
+        if self.buffer and value:
+            return self.buffer.pop(0)
 
-        try:
-            record = self._emitter.send(value)
-        except TypeError:
-            record = self._emitter.send(None)
+        record = self._emitter.send(value if self._is_active else None)
+        if not self._is_active:
+            self._is_active = True
 
         try:
             self.records_sm(record[0])
@@ -189,7 +188,7 @@ class Client(ASTMProtocol):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
         self.emitter = self.emitter_wrapper(
-            emitter(),
+            emitter,
             encoding=encoding or self.encoding,
             flow_map=flow_map,
         )
