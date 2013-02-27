@@ -72,6 +72,8 @@ class ASTMProtocol(AsyncChat):
 
     def push(self, data):
         self._last_sent_data = data
+        if self.timer is not None and not self.timer.cancelled:
+            self.timer.reset()
         return super(ASTMProtocol, self).push(data)
 
     def on_enq(self):
