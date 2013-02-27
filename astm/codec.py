@@ -157,7 +157,7 @@ def encode(records, encoding=ENCODING, size=None):
     :rtype: list
     """
     msg = encode_message(1, records, encoding)
-    if size is not None and len(msg[1:-5]) > size:
+    if size is not None and len(msg) > size:
         return list(split(msg, size))
     return [msg]
 
