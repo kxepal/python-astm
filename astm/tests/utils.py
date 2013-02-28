@@ -10,7 +10,7 @@
 
 class DummyMixIn(object):
     _input_buffer = ''
-    addr = ('localhost', '15200')
+    addr = ('localhost', 15200)
 
     def flush(self):
         pass

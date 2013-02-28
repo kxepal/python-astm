@@ -94,7 +94,7 @@ class ASTMProtocol(AsyncChat):
     def on_timeout(self):
         """Calls when timeout event occurs. Used to limit waiting time for
         response data."""
-        log.warn('Communication timeout')
+        log.warning('Communication timeout')
 
     def handle_read(self):
         if self.timer is not None and not self.timer.cancelled:
