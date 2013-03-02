@@ -205,7 +205,7 @@ def encode_message(seq, records, encoding):
     """
     data = RECORD_SEP.join(encode_record(record, encoding)
                            for record in records)
-    data = b''.join((str(seq).encode(), data, CR, ETX))
+    data = b''.join((str(seq % 8).encode(), data, CR, ETX))
     return b''.join([STX, data, make_checksum(data), CR, LF])
 
 
@@ -309,9 +309,9 @@ def split(msg, size):
     chunks, last = chunks[:-1], chunks[-1]
     idx = 0
     for idx, chunk in enumerate(chunks):
-        item = b''.join([str(idx + frame).encode(), chunk, ETB])
+        item = b''.join([str((idx + frame) % 8).encode(), chunk, ETB])
         yield b''.join([STX, item, make_checksum(item), CRLF])
-    item = b''.join([str(idx + frame + 1).encode(), last, CR, ETX])
+    item = b''.join([str((idx + frame + 1) % 8).encode(), last, CR, ETX])
     yield b''.join([STX, item, make_checksum(item), CRLF])
 
 

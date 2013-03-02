@@ -159,6 +159,20 @@ class EncodeTestCase(unittest.TestCase):
                f('{STX}3baz|3{CR}{ETX}2F{CRLF}')]
         self.assertEqual(res, list(codec.iter_encode(records, 'ascii')))
 
+    def test_frame_number(self):
+        records = list(map(list, 'ABCDEFGHIJ'))
+        res = [f('{STX}1A{CR}{ETX}82{CRLF}'),
+               f('{STX}2B{CR}{ETX}84{CRLF}'),
+               f('{STX}3C{CR}{ETX}86{CRLF}'),
+               f('{STX}4D{CR}{ETX}88{CRLF}'),
+               f('{STX}5E{CR}{ETX}8A{CRLF}'),
+               f('{STX}6F{CR}{ETX}8C{CRLF}'),
+               f('{STX}7G{CR}{ETX}8E{CRLF}'),
+               f('{STX}0H{CR}{ETX}88{CRLF}'),
+               f('{STX}1I{CR}{ETX}8A{CRLF}'),
+               f('{STX}2J{CR}{ETX}8C{CRLF}')]
+        self.assertEqual(res, list(codec.iter_encode(records, 'ascii')))
+
 
 class ChunkedEncodingTestCase(unittest.TestCase):
 
