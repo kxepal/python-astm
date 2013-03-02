@@ -8,9 +8,10 @@
 #
 
 import unittest
+from astm import codec
+from astm import constants
 from astm.exceptions import NotAccepted
 from astm.client import Client
-from astm import constants
 from astm.tests.utils import DummyMixIn
 
 
@@ -297,6 +298,29 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
         client.on_timeout()
         self.assertEqual(client.outbox[-2], constants.EOT)
+        self.assertEqual(client.outbox[-1], None)
+
+    def test_chunked_response(self):
+        def emitter():
+            assert (yield ['H', 'foo', 'bar'])
+            assert (yield ['L', 'bar', 'baz'])
+        client = DummyClient(emitter, chunk_size=12)
+        client.handle_connect()
+        client.on_ack()
+        self.assertTrue(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x021H|foo\x1750\r\n')
+        client.on_ack()
+        self.assertFalse(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x022|bar\r\x03F3\r\n')
+        client.on_ack()
+        self.assertTrue(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x023L|bar\x1747\r\n')
+        client.on_ack()
+        self.assertFalse(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x024|baz\r\x03FD\r\n')
+        client.on_ack()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_ack()
         self.assertEqual(client.outbox[-1], None)
 
 

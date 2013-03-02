@@ -137,15 +137,15 @@ def decode_repeated_component(component, encoding):
             for item in component.split(REPEAT_SEP)]
 
 
-def encode(records, encoding=ENCODING, size=None):
+def encode(records, encoding=ENCODING, size=None, seq=1):
     """Encodes list of records into single ASTM message, also called as "packed"
     message.
 
     If you need to get each record as standalone message use :func:`iter_encode`
     instead.
 
-    If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
-    than it will be split by chunks.
+    If the result message is too large (greater than specified `size` if it's
+    not :const:`None`), than it will be split by chunks.
 
     :param records: List of ASTM records.
     :type records: list
@@ -153,33 +153,38 @@ def encode(records, encoding=ENCODING, size=None):
     :param encoding: Data encoding.
     :type encoding: str
 
+    :param size: Chunk size in bytes.
+    :type size: int
+
+    :param seq: Frame start sequence number.
+    :type seq: int
+
     :return: List of ASTM message chunks.
     :rtype: list
     """
-    msg = encode_message(1, records, encoding)
+    msg = encode_message(seq, records, encoding)
     if size is not None and len(msg) > size:
         return list(split(msg, size))
     return [msg]
 
 
-def iter_encode(records, encoding=ENCODING, size=None):
+def iter_encode(records, encoding=ENCODING, size=None, seq=1):
     """Encodes and emits each record as separate message.
 
-    If the result message is too large (greater than :const:`MAX_MESSAGE_SIZE`),
-    than it will be split by chunks.
+    If the result message is too large (greater than specified `size` if it's
+    not :const:`None`), than it will be split by chunks.
 
     :yields: ASTM message chunks.
     :rtype: str
     """
-    idx = 1
     for record in records:
-        msg = encode_message(idx, [record], encoding)
+        msg = encode_message(seq, [record], encoding)
         if size is not None and len(msg) > size:
             for chunk in split(msg, size):
-                idx += 1
+                seq += 1
                 yield chunk
         else:
-            idx += 1
+            seq += 1
             yield msg
 
 
@@ -288,6 +293,9 @@ def split(msg, size):
 
     :param msg: ASTM message.
     :type msg: bytes
+
+    :param size: Chunk size in bytes.
+    :type size: int
 
     :yield: `bytes`
     """

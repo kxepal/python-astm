@@ -10,7 +10,7 @@
 import logging
 import socket
 from .asynclib import loop
-from .codec import encode_message
+from .codec import encode
 from .constants import ENQ, EOT
 from .exceptions import NotAccepted
 from .mapping import Record
@@ -80,13 +80,17 @@ class Emitter(object):
 
     :param flow_map: Records flow map. Used by :class:`RecordsStateMachine`.
     :type: dict
+
+    :param chunk_size: Chunk size in bytes. If :const:`None`, emitter record
+                       wouldn't be split into chunks.
+    :type chunk_size: int
     """
 
     #: Records state machine controls emitting records in right order. It
     #: receives `records_flow_map` as only argument on Emitter initialization.
     state_machine = RecordsStateMachine
 
-    def __init__(self, emitter, encoding, flow_map):
+    def __init__(self, emitter, encoding, flow_map, chunk_size):
         self._emitter = emitter()
         self._is_active = False
         self.encoding = encoding
@@ -96,13 +100,18 @@ class Emitter(object):
         # last sent sequence number
         self.last_seq = 0
         self.buffer = []
+        self.chunk_size = chunk_size
 
     def _send_record(self, record):
         if isinstance(record, Record):
             record = record.to_astm()
 
         self.last_seq += 1
-        data = encode_message(self.last_seq, [record], self.encoding)
+
+        chunks = encode([record], self.encoding, self.chunk_size, self.last_seq)
+        self.buffer.extend(chunks)
+        data = self.buffer.pop(0)
+        self.last_seq += len(self.buffer)
 
         if record[0] == 'L':
             self.last_seq = 0
@@ -175,6 +184,10 @@ class Client(ASTMProtocol):
 
     :param flow_map: Records flow map. Used by :class:`RecordsStateMachine`.
     :type: dict
+
+    :param chunk_size: Chunk size in bytes. :const:`None` value prevents
+                       records chunking.
+    :type chunk_size: int
     """
 
     #: Wrapper of emitter to provide session context and system logic about
@@ -183,7 +196,7 @@ class Client(ASTMProtocol):
 
     def __init__(self, emitter, host='localhost', port=15200,
                  encoding=None, timeout=20,
-                 flow_map=DEFAULT_RECORDS_FLOW_MAP):
+                 flow_map=DEFAULT_RECORDS_FLOW_MAP, chunk_size=None):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
@@ -191,6 +204,7 @@ class Client(ASTMProtocol):
             emitter,
             encoding=encoding or self.encoding,
             flow_map=flow_map,
+            chunk_size=chunk_size
         )
         self.terminator = 1
 
