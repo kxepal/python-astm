@@ -2,7 +2,7 @@
 #
 # Author: Sam Rushing <rushing@nightmare.com>
 #
-# Copyright (C) 2012 Alexander Shorin
+# Copyright (C) 2013 Alexander Shorin
 # All rights reserved.
 #
 # This software is licensed as described in the file COPYING, which
