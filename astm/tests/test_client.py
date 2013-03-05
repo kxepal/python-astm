@@ -323,6 +323,29 @@ class ClientTestCase(unittest.TestCase):
         client.on_ack()
         self.assertEqual(client.outbox[-1], None)
 
+    def test_bulk_mode(self):
+        def emitter():
+            assert (yield ['H', 'foo', 'bar'])
+            assert (yield ['L', 'bar', 'baz'])
+        client = DummyClient(emitter, chunk_size=12, bulk_mode=True)
+        client.handle_connect()
+        client.on_ack()
+        self.assertTrue(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x021H|foo\x1750\r\n')
+        client.on_ack()
+        self.assertTrue(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x022|bar\r\x1707\r\n')
+        client.on_ack()
+        self.assertTrue(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x023L|bar\x1747\r\n')
+        client.on_ack()
+        self.assertFalse(codec.is_chunked_message(client.outbox[-1]))
+        self.assertEqual(client.outbox[-1], b'\x024|baz\r\x03FD\r\n')
+        client.on_ack()
+        self.assertEqual(client.outbox[-1], constants.ENQ)
+        client.on_ack()
+        self.assertEqual(client.outbox[-1], None)
+
 
 
 if __name__ == '__main__':

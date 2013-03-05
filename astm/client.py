@@ -84,13 +84,23 @@ class Emitter(object):
     :param chunk_size: Chunk size in bytes. If :const:`None`, emitter record
                        wouldn't be split into chunks.
     :type chunk_size: int
+
+    :param bulk_mode: Sends all records for single session (starts from Header
+                      and ends with Terminator records) via single message
+                      instead of sending each record separately. If result
+                      message is too long, it may be split by chunks if
+                      `chunk_size` is not :const:`None`. Keep in mind, that
+                      collecting all records for single session may take some
+                      time and server may reject data by timeout reason.
+    :type bulk_mode: bool
     """
 
     #: Records state machine controls emitting records in right order. It
     #: receives `records_flow_map` as only argument on Emitter initialization.
     state_machine = RecordsStateMachine
 
-    def __init__(self, emitter, encoding, flow_map, chunk_size):
+    def __init__(self, emitter, flow_map, encoding,
+                 chunk_size=None, bulk_mode=False):
         self._emitter = emitter()
         self._is_active = False
         self.encoding = encoding
@@ -101,14 +111,34 @@ class Emitter(object):
         self.last_seq = 0
         self.buffer = []
         self.chunk_size = chunk_size
+        self.bulk_mode = bulk_mode
 
-    def _send_record(self, record):
+    def _get_record(self, value=None):
+        record = self._emitter.send(value if self._is_active else None)
+        if not self._is_active:
+            self._is_active = True
         if isinstance(record, Record):
             record = record.to_astm()
+        try:
+            self.records_sm(record[0])
+        except Exception as err:
+            self.throw(type(err), err.args)
+        return record
 
-        self.last_seq += 1
+    def _send_record(self, record):
+        if self.bulk_mode:
+            records = [record]
+            while True:
+                record = self._get_record(True)
+                records.append(record)
+                if record[0] == 'L':
+                    break
+            chunks = encode(records, self.encoding, self.chunk_size)
+        else:
+            self.last_seq += 1
+            chunks = encode([record], self.encoding,
+                            self.chunk_size, self.last_seq)
 
-        chunks = encode([record], self.encoding, self.chunk_size, self.last_seq)
         self.buffer.extend(chunks)
         data = self.buffer.pop(0)
         self.last_seq += len(self.buffer)
@@ -137,14 +167,7 @@ class Emitter(object):
         if self.buffer and value:
             return self.buffer.pop(0)
 
-        record = self._emitter.send(value if self._is_active else None)
-        if not self._is_active:
-            self._is_active = True
-
-        try:
-            self.records_sm(record[0])
-        except Exception as err:
-            self.throw(type(err), err.args)
+        record = self._get_record(value)
 
         return self._send_record(record)
 
@@ -188,6 +211,15 @@ class Client(ASTMProtocol):
     :param chunk_size: Chunk size in bytes. :const:`None` value prevents
                        records chunking.
     :type chunk_size: int
+
+    :param bulk_mode: Sends all records for single session (starts from Header
+                      and ends with Terminator records) via single message
+                      instead of sending each record separately. If result
+                      message is too long, it may be split by chunks if
+                      `chunk_size` is not :const:`None`. Keep in mind, that
+                      collecting all records for single session may take some
+                      time and server may reject data by timeout reason.
+    :type bulk_mode: bool
     """
 
     #: Wrapper of emitter to provide session context and system logic about
@@ -195,8 +227,8 @@ class Client(ASTMProtocol):
     emitter_wrapper = Emitter
 
     def __init__(self, emitter, host='localhost', port=15200,
-                 encoding=None, timeout=20,
-                 flow_map=DEFAULT_RECORDS_FLOW_MAP, chunk_size=None):
+                 encoding=None, timeout=20, flow_map=DEFAULT_RECORDS_FLOW_MAP,
+                 chunk_size=None, bulk_mode=False):
         super(Client, self).__init__(timeout=timeout)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
@@ -204,7 +236,8 @@ class Client(ASTMProtocol):
             emitter,
             encoding=encoding or self.encoding,
             flow_map=flow_map,
-            chunk_size=chunk_size
+            chunk_size=chunk_size,
+            bulk_mode=bulk_mode
         )
         self.terminator = 1
 
