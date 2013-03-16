@@ -218,11 +218,9 @@ class CommonPatient(PatientRecord):
 
 class CommonOrder(OrderRecord):
     biomaterial = TextField(length=20)
-    created_at = DateTimeField(required=True)
     laboratory_field_2 = TextField(length=12)
     priority = SetField(default='S', values=('S', 'R'))
     sample_id = TextField(required=True, length=12)
-    sampled_at = DateTimeField()
     user_field_1 = TextField(length=20)
     user_field_2 = TextField(length=1024)
 

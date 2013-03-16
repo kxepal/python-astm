@@ -17,7 +17,7 @@
 from astm.server import BaseRecordsDispatcher
 from astm.mapping import (
     Component, ConstantField, ComponentField, DateTimeField, IntegerField,
-    SetField, TextField, NotUsedField
+    SetField, TextField, NotUsedField, DateField
 )
 from .common import (
     Header, Terminator, CommonPatient as Patient,
@@ -336,9 +336,11 @@ class Result(CommonResult):
                 1010, 1011, 1012, 1013))
     abnormality_nature = SetField(values=('N', 'L', 'H', 'LL', 'HH'))
     completed_at = ComponentField(CompletionDate)
+    created_at = DateField()
     instrument = TextField(length=16)
     operator = ComponentField(Operator)
     references = TextField()
+    sampled_at = DateField()
     started_at = DateTimeField(required=True)
     status = SetField(values=('F', 'R'))
     test = ComponentField(Test)

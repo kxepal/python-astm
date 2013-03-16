@@ -15,7 +15,7 @@
 """
 
 from astm.mapping import (
-    Component, ConstantField, ComponentField, IntegerField,
+    Component, ConstantField, ComponentField, IntegerField, DateTimeField,
     RepeatedComponentField, SetField, TextField, NotUsedField
 )
 from .common import (
@@ -300,9 +300,11 @@ class Order(CommonOrder):
     :type laboratory: str
     """
     action_code = SetField(default='N', values=('C', 'A', 'N', 'R'))
+    created_at = DateTimeField(required=True)
     laboratory = TextField(length=20)
     laboratory_field_1 = TextField(length=20)
     report_type = ConstantField(default='O')
+    sampled_at = DateTimeField()
     test = RepeatedComponentField(Test)
 
 
