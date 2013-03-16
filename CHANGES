@@ -1,6 +1,19 @@
 
-Release 0.4.1 (2013-02-01)
+Release 0.5 (2013-03-16)
 ------------------------
+
+- Rewrite emitter for Client: replace mystic sessions that hides some detail
+  with explicit need of yielding Header and Terminator records;
+- Fix emitter usage with infinity loop;
+- Use timer based on scheduled tasks instead of threading.Timer;
+- Remove internal states routine;
+- Improve overall stability;
+- Client now able to send data by chunks and with bulk mode, sending all records
+  with single message;
+- Code cleanup;
+
+Release 0.4.1 (2013-02-01)
+--------------------------
 
 - Fix timer for Python 2.x
 
