@@ -7,5 +7,9 @@
 # you should have received as part of this distribution.
 #
 
-__version__ = '0.6.0'
 __version_info__ = (0, 6, 0, 'dev', 0)
+__version__ = '{version}{tag}{build}'.format(
+    version='.'.join(map(str, __version_info__[:3])),
+    tag='-' + __version_info__[3] if __version_info__[3] else '',
+    build='.' + str(__version_info__[4]) if __version_info__[4] else ''
+)
