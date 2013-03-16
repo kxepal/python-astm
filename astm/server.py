@@ -21,7 +21,39 @@ __all__ = ['BaseRecordsDispatcher', 'RequestHandler', 'Server']
 
 
 class BaseRecordsDispatcher(object):
-    """Dispatcher of received ASTM records by :class:`RequestHandler`."""
+    """Abstract dispatcher of received ASTM records by :class:`RequestHandler`.
+    You need to override his handlers or extend dispatcher for your needs.
+    For instance::
+
+        class Dispatcher(BaseRecordsDispatcher):
+
+            def __init__(self, encoding=None):
+                super(Dispatcher, self).__init__(encoding)
+                # extend it for your needs
+                self.dispatch['M'] = self.my_handler
+                # map custom wrappers for ASTM records to their type if you
+                # don't like to work with raw data.
+                self.wrapper['M'] = MyWrapper
+
+            def on_header(self, record):
+                # initialize state for this session
+                ...
+
+            def on_patient(self, record):
+                # handle patient info
+                ...
+
+            # etc handlers
+
+            def my_handler(self, record):
+                # handle custom record that wasn't implemented yet by
+                # python-astm due to some reasons
+                ...
+
+    After defining our dispatcher, we left only to let :class:`Server` use it::
+
+        server = Server(dispatcher=Dispatcher)
+    """
 
     #: Encoding of received messages.
     encoding = ENCODING
