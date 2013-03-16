@@ -220,6 +220,30 @@ class Client(ASTMProtocol):
                       collecting all records for single session may take some
                       time and server may reject data by timeout reason.
     :type bulk_mode: bool
+
+    Base `emitter` is a generator that yield ASTM records one by one preserving
+    their order::
+
+        from astm.records import (
+            HeaderRecord, PatientRecord, OrderRecord, TerminatorRecord
+        )
+        def emitter():
+            assert (yield HeaderRecord()), 'header was rejected'
+            ok = yield PatientRecord(name={'last': 'foo', 'first': 'bar'})
+            if ok:  # you also can decide what to do in case of record rejection
+                assert (yield OrderRecord())
+            yield TerminatorRecord()  # we may do not care about rejection
+
+    :class:`Client` thought :class:`RecordsStateMachine` keep track
+    on this order, raising :exc:`AssertionError` if it is broken.
+
+    When `emitter` terminates with :exc:`StopIteration` or :exc:`GeneratorExit`
+    exception client connection to server closing too. You may provide endless
+    `emitter` by wrapping function body with ``while True: ...`` loop polling
+    data from source from time to time. Note, that server may have communication
+    timeouts control and may close session after some time of inactivity, so
+    be sure that you're able to send whole session (started by Header record and
+    ended by Terminator one) within limited time frame (commonly 10-15 sec.).
     """
 
     #: Wrapper of emitter to provide session context and system logic about
