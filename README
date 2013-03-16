@@ -1,0 +1,21 @@
+Python implementation of ASTM E1381/1394 data protocol.
+
+This project aims to solve three tasks:
+
+1. Provide decoder ASTM data to Python objects and encode them back to valid
+   ASTM messages.
+
+2. Provide ability to create your own ASTM client and server applications
+   followed by common specification routines.
+
+3. Provide ready-to-use "drivers" for various ASTM-driven analysers,
+   middlewares and other software or hardware solutions.
+
+
+Depending on your needs you may use this project in one of these ways.
+Currently, all communication routines are implemented for TCP/IP protocol driven
+by a bit improved standard asynclib.
+
+Read the docs for more info:
+http://python-astm.readthedocs.org
+
