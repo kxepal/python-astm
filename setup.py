@@ -27,7 +27,7 @@ except ImportError:
         packages = {}
         for item in os.listdir(path):
             dir = os.path.join(path, item)
-            if is_package( dir ):
+            if is_package(dir):
                 if base:
                     module_name = "%(base)s.%(item)s" % vars()
                 else:
@@ -40,6 +40,7 @@ setup(
     name = 'astm',
     version = __version__,
     description = 'Python implementation of ASTM E1381/1394 protocol.',
+    long_description = open('README').read(),
 
     author = 'Alexander Shorin',
     author_email = 'kxepal@gmail.com',
