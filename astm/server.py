@@ -81,26 +81,36 @@ class BaseRecordsDispatcher(object):
             return self.wrappers[rtype](*record)
         return record
 
+    def _default_handler(self, record):
+        log.warn('Record remains unprocessed: %s', record)
+
     def on_header(self, record):
         """Header record handler."""
+        self._default_handler(record)
 
     def on_comment(self, record):
         """Comment record handler."""
+        self._default_handler(record)
 
     def on_patient(self, record):
         """Patient record handler."""
+        self._default_handler(record)
 
     def on_order(self, record):
         """Order record handler."""
+        self._default_handler(record)
 
     def on_result(self, record):
         """Result record handler."""
+        self._default_handler(record)
 
     def on_terminator(self, record):
         """Terminator record handler."""
+        self._default_handler(record)
 
     def on_unknown(self, record):
         """Fallback handler for dispatcher."""
+        self._default_handler(record)
 
 
 class RequestHandler(ASTMProtocol):
