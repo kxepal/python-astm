@@ -58,12 +58,13 @@ class RecordsStateMachine(object):
 
 DEFAULT_RECORDS_FLOW_MAP = {
     None: ['H'],
-    'H': ['C', 'P', 'L'],
-    'P': ['C', 'O', 'L'],
-    'O': ['C', 'P', 'O', 'R', 'L'],
-    'R': ['C', 'P', 'O', 'R', 'S', 'L'],
-    'S': ['C', 'P', 'O', 'R', 'S', 'L'],
+    'H': ['C', 'M', 'P', 'L'],
+    'P': ['C', 'M', 'O', 'L'],
+    'O': ['C', 'M', 'P', 'O', 'R', 'L'],
+    'R': ['C', 'M', 'P', 'O', 'R', 'S', 'L'],
+    'S': ['C', 'M', 'P', 'O', 'R', 'S', 'L'],
     'C': ['*'],
+    'M': ['*'],
     'L': ['H']
 }
 

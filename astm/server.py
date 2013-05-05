@@ -67,6 +67,7 @@ class BaseRecordsDispatcher(object):
             'O': self.on_order,
             'R': self.on_result,
             'S': self.on_scientific,
+            'M': self.on_manufacturer_info,
             'L': self.on_terminator
         }
         self.wrappers = {}
@@ -99,6 +100,9 @@ class BaseRecordsDispatcher(object):
 
     def on_scientific(self, record):
         """Scientific record handler."""
+
+    def on_manufacturer_info(self, record):
+        """Manufacturer information record handler."""
 
     def on_terminator(self, record):
         """Terminator record handler."""

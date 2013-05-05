@@ -158,6 +158,11 @@ class RecordsDispatcherTestCase(unittest.TestCase):
         self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['S'].was_called)
 
+    def test_dispatch_manufacturer_info(self):
+        message = codec.encode_message(1, ['M'], 'ascii')
+        self.dispatcher(message)
+        self.assertTrue(self.dispatcher.dispatch['M'].was_called)
+
     def test_dispatch_terminator(self):
         message = codec.encode_message(1, ['L'], 'ascii')
         self.dispatcher(message)

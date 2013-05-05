@@ -424,3 +424,22 @@ ScientificRecord = Record.build(
     NotUsedField(name='sex'),
     NotUsedField(name='race'),
 )
+
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  #  | ASTM Field # | ASTM Name                       | Python alias      |
+#: +=====+==============+=================================+===================+
+#: |   1 |       15.1.1 |                  Record Type ID |              type |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   2 |       15.1.2 |                 Sequence Number |               seq |
+#: +-----+--------------+---------------------------------+-------------------+
+#:
+#: .. note::
+#:   This record, which is similar to the comment record, may be used to send
+#:   complex structures where use of the existing record types would not be
+#:   appropriate. The fields within this record type are defined by the
+#:   manufacturer.
+#:
+ManufacturerInfoRecord = Record.build(
+    ConstantField(name='type', default='M'),
+    IntegerField(name='seq', default=1, required=True),
+)
