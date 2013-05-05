@@ -89,22 +89,13 @@ class RequestHandlerTestCase(unittest.TestCase):
         self.assertTrue(self.req.dispatcher.was_called)
         self.assertFalse(self.req._chunks)
 
-    def test_accept_message_chunk(self):
+    def test_handle_chunked_transfer(self):
         self.req.on_enq()
-        self.req.is_chunked_transfer = True
-        self.req._last_recv_data = codec.encode([records.HeaderRecord()
-                                                 .to_astm()])[0]
-        self.assertEqual(self.req.on_message(), constants.ACK)
-        self.assertFalse(self.req.dispatcher.was_called)
-        self.assertTrue(self.req._chunks)
-
-    def test_join_chunks_on_last_one(self):
-        self.req.on_enq()
-        self.req.is_chunked_transfer = False
         self.req._chunks = [b'']
         self.req._last_recv_data = codec.encode([records.HeaderRecord()
                                                  .to_astm()])[0]
         self.assertEqual(self.req.on_message(), constants.ACK)
+        self.assertTrue(self.req.dispatcher.was_called)
         self.assertFalse(self.req._chunks)
 
     def test_cleanup_input_buffer_on_message_reject(self):

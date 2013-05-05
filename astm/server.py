@@ -179,8 +179,7 @@ class RequestHandler(ASTMProtocol):
                 return NAK
 
     def handle_message(self, message):
-        if self.is_chunked_transfer is None:
-            self.is_chunked_transfer = is_chunked_message(message)
+        self.is_chunked_transfer = is_chunked_message(message)
         if self.is_chunked_transfer:
             self._chunks.append(message)
         elif self._chunks:
