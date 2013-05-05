@@ -354,3 +354,73 @@ TerminatorRecord = Record.build(
     ConstantField(name='seq', default=1, field=IntegerField()),
     ConstantField(name='code', default='N')
 )
+
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  #  | ASTM Field # | ASTM Name                       | Python alias      |
+#: +=====+==============+=================================+===================+
+#: |   1 |       14.1.1 |                  Record Type ID |              type |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   2 |       14.1.2 |                 Sequence Number |               seq |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   3 |       14.1.3 |               Analytical Method |            method |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   4 |       14.1.4 |                 Instrumentation |        instrument |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   5 |       14.1.5 |                        Reagents |          reagents |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   6 |       14.1.6 |                Units of Measure |             units |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   7 |       14.1.7 |                 Quality Control |                qc |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   8 |       14.1.8 |             Specimen Descriptor |       biomaterial |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |   9 |       14.1.9 |                  Reserved Field |          reserved |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  10 |      14.1.10 |                       Container |         container |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  11 |      14.1.11 |                     Specimen ID |         sample_id |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  12 |      14.1.12 |                         Analyte |           analyte |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  13 |      14.1.13 |                          Result |            result |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  14 |      14.1.14 |                    Result Units |      result_units |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  15 |      14.1.15 |        Collection Date and Time |        sampled_at |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  16 |      14.1.16 |            Result Date and Time |      completed_at |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  17 |      14.1.17 |  Analytical Preprocessing Steps |      preanalytics |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  18 |      14.1.18 |               Patient Diagnosis |         diagnosis |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  19 |      14.1.19 |               Patient Birthdate |         birthdate |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  20 |      14.1.20 |                     Patient Sex |               sex |
+#: +-----+--------------+---------------------------------+-------------------+
+#: |  21 |      14.1.21 |                    Patient Race |              race |
+#: +-----+--------------+---------------------------------+-------------------+
+#:
+ScientificRecord = Record.build(
+    ConstantField(name='type', default='S'),
+    IntegerField(name='seq', default=1, required=True),
+    NotUsedField(name='method'),
+    NotUsedField(name='instrument'),
+    NotUsedField(name='reagents'),
+    NotUsedField(name='units'),
+    NotUsedField(name='qc'),
+    NotUsedField(name='biomaterial'),
+    NotUsedField(name='reserved'),
+    NotUsedField(name='container'),
+    NotUsedField(name='sample_id'),
+    NotUsedField(name='analyte'),
+    NotUsedField(name='result'),
+    NotUsedField(name='result_units'),
+    NotUsedField(name='sampled_at'),
+    NotUsedField(name='completed_at'),
+    NotUsedField(name='preanalytics'),
+    NotUsedField(name='diagnosis'),
+    NotUsedField(name='birthdate'),
+    NotUsedField(name='sex'),
+    NotUsedField(name='race'),
+)

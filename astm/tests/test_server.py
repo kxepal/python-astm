@@ -15,6 +15,7 @@ from astm.server import RequestHandler, BaseRecordsDispatcher
 from astm import codec, constants, records
 from astm.tests.utils import DummyMixIn, track_call
 
+
 def null_dispatcher(*args, **kwargs):
     pass
 
@@ -151,6 +152,11 @@ class RecordsDispatcherTestCase(unittest.TestCase):
         message = codec.encode_message(1, ['R'], 'ascii')
         self.dispatcher(message)
         self.assertTrue(self.dispatcher.dispatch['R'].was_called)
+
+    def test_dispatch_scientific(self):
+        message = codec.encode_message(1, ['S'], 'ascii')
+        self.dispatcher(message)
+        self.assertTrue(self.dispatcher.dispatch['S'].was_called)
 
     def test_dispatch_terminator(self):
         message = codec.encode_message(1, ['L'], 'ascii')
